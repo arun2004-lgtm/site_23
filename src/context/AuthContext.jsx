@@ -1,0 +1,494 @@
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { initialBatchmates, batchInfo, photoAlbums } from '../data/batchData';
+import { 
+  requestGoogleDriveToken, 
+  fetchGoogleUserInfo, 
+  syncAllBatchFolders 
+} from '../services/googleDriveService';
+
+const AuthContext = createContext(null);
+
+// Normalize E-Number (e.g., 'E/23/020' or 'e23020' -> 'e23020')
+function normalizeRegNo(str) {
+  if (!str) return '';
+  return str.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+}
+
+const DEFAULT_GOOGLE_CLIENT_ID = '298305600625-57kc5rilqcgrae3uinsqh1esngh84add.apps.googleusercontent.com';
+const SESSION_STORAGE_KEY = 'site23_auth_session_v2';
+
+function generateSessionToken() {
+  return (
+    (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '') ||
+    'sess_' + Math.random().toString(36).substring(2) + Date.now().toString(36)
+  );
+}
+
+function createSession(member, authEmail) {
+  const session = {
+    userId: member.id,
+    regNo: member.regNo,
+    email: authEmail || member.personalEmail || member.universityEmail,
+    name: member.name,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days secure session duration
+    token: generateSessionToken(),
+    authProvider: 'google_oauth'
+  };
+  try {
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+  } catch (e) {
+    console.error('Failed to save session:', e);
+  }
+  return session;
+}
+
+function getValidSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const session = JSON.parse(raw);
+    if (!session || !session.expiresAt || !session.userId) return null;
+    if (Date.now() > session.expiresAt) {
+      // Session has expired!
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      localStorage.removeItem('site23_pera_currentUser_v4');
+      sessionStorage.removeItem('site23_gdrive_access_token');
+      return null;
+    }
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+export function AuthProvider({ children }) {
+  // Load batchmates roster from localStorage or fallback to initial data
+  const [batchmates, setBatchmates] = useState(() => {
+    try {
+      const saved = localStorage.getItem('site23_pera_batchmates_v6');
+      return saved ? JSON.parse(saved) : initialBatchmates;
+    } catch {
+      return initialBatchmates;
+    }
+  });
+
+  // Current logged in user validated through secure session
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const activeSession = getValidSession();
+      if (!activeSession) return null;
+
+      // Validate session against current batchmates database
+      const roster = (() => {
+        try {
+          const saved = localStorage.getItem('site23_pera_batchmates_v6');
+          return saved ? JSON.parse(saved) : initialBatchmates;
+        } catch {
+          return initialBatchmates;
+        }
+      })();
+
+      const member = roster.find(m => m.id === activeSession.userId);
+      if (member) return member;
+
+      // Invalidate if user no longer in database
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      localStorage.removeItem('site23_pera_currentUser_v4');
+      return null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Google OAuth Access Token (stored in sessionStorage for privacy)
+  const [googleAccessToken, setGoogleAccessToken] = useState(() => {
+    return sessionStorage.getItem('site23_gdrive_access_token') || '';
+  });
+
+  // Google Client ID (from localStorage, environment variable, or default)
+  const [googleClientId, setGoogleClientId] = useState(() => {
+    return (
+      localStorage.getItem('site23_gdrive_client_id') || 
+      import.meta.env.VITE_GOOGLE_CLIENT_ID || 
+      DEFAULT_GOOGLE_CLIENT_ID
+    );
+  });
+
+  // Synced photos pulled directly from Google Drive API v3
+  const [syncedDrivePhotos, setSyncedDrivePhotos] = useState(() => {
+    try {
+      const saved = localStorage.getItem('site23_synced_drive_photos_v1');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [isSyncingDrive, setIsSyncingDrive] = useState(false);
+  const [syncProgress, setSyncProgress] = useState(null);
+  const [driveSyncError, setDriveSyncError] = useState('');
+
+  // Persist batchmates whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(batchmates));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [batchmates]);
+
+  // Persist currentUser and keep active session in sync
+  useEffect(() => {
+    try {
+      if (currentUser) {
+        localStorage.setItem('site23_pera_currentUser_v4', JSON.stringify(currentUser));
+        // Keep active session in sync
+        const activeSession = getValidSession();
+        if (activeSession) {
+          activeSession.userId = currentUser.id;
+          activeSession.regNo = currentUser.regNo;
+          activeSession.email = currentUser.personalEmail || currentUser.universityEmail;
+          localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
+        }
+      } else {
+        localStorage.removeItem('site23_pera_currentUser_v4');
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [currentUser]);
+
+  // Save Google OAuth Client ID
+  const saveGoogleClientId = (id) => {
+    const cleanId = (id || '').trim();
+    setGoogleClientId(cleanId);
+    if (cleanId) {
+      localStorage.setItem('site23_gdrive_client_id', cleanId);
+    } else {
+      localStorage.removeItem('site23_gdrive_client_id');
+    }
+  };
+
+  // Sync photos from all 9 Google Drive folders using Drive API v3
+  const syncDrivePhotos = async (tokenOverride) => {
+    const token = tokenOverride || googleAccessToken;
+    if (!token) {
+      setDriveSyncError('No active Google OAuth session. Please connect your Google account.');
+      return [];
+    }
+
+    setIsSyncingDrive(true);
+    setDriveSyncError('');
+
+    try {
+      const photos = await syncAllBatchFolders(photoAlbums, token, (progress) => {
+        setSyncProgress(progress);
+      });
+
+      setSyncedDrivePhotos(photos);
+      localStorage.setItem('site23_synced_drive_photos_v1', JSON.stringify(photos));
+      return photos;
+    } catch (err) {
+      console.error('Error syncing Drive photos:', err);
+      setDriveSyncError(err.message || 'Could not sync photos from Google Drive.');
+      return [];
+    } finally {
+      setIsSyncingDrive(false);
+      setSyncProgress(null);
+    }
+  };
+
+  // Direct Google Sign-In with OAuth2
+  const loginWithGoogleOAuth = async (clientIdOverride) => {
+    const clientId = clientIdOverride || googleClientId;
+    if (!clientId) {
+      throw new Error(
+        'Google OAuth Client ID is not configured. Please enter your Google Client ID or check .env (VITE_GOOGLE_CLIENT_ID).'
+      );
+    }
+
+    setDriveSyncError('');
+    const tokenResponse = await requestGoogleDriveToken(clientId);
+    const token = tokenResponse.access_token;
+    setGoogleAccessToken(token);
+    sessionStorage.setItem('site23_gdrive_access_token', token);
+
+    // Fetch user profile from Google to identify student
+    const userInfo = await fetchGoogleUserInfo(token);
+    const authEmail = (userInfo.email || '').toLowerCase().trim();
+
+    // Authenticate matching batchmate from the database
+    let member = batchmates.find(m => 
+      m.universityEmail?.toLowerCase() === authEmail ||
+      m.personalEmail?.toLowerCase() === authEmail ||
+      (m.linkedEmails && m.linkedEmails.map(e => e.toLowerCase()).includes(authEmail)) ||
+      (m.id === 'e23020' && authEmail === 'peradeniyaguys@gmail.com')
+    );
+
+    // If not found by exact email, check if prefix matches an E-Number in the database
+    if (!member) {
+      const prefix = authEmail.split('@')[0];
+      const normPrefix = normalizeRegNo(prefix);
+      member = batchmates.find(m => normalizeRegNo(m.regNo) === normPrefix || m.id === normPrefix);
+
+      // If recognized by registration prefix, associate/save this Google email into their database record!
+      if (member) {
+        const updatedMember = {
+          ...member,
+          personalEmail: member.personalEmail || authEmail
+        };
+        member = updatedMember;
+        setBatchmates(prev => {
+          const updated = prev.map(m => m.id === updatedMember.id ? updatedMember : m);
+          localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    }
+
+    // If still not found, check if it's an official university domain account (@eng.pdn.ac.lk or starting with e23)
+    if (!member) {
+      if (authEmail.endsWith(batchInfo.universityDomain.toLowerCase()) || authEmail.startsWith('e23')) {
+        const prefix = authEmail.split('@')[0];
+        const normPrefix = normalizeRegNo(prefix);
+        const formattedRegNo = prefix.toUpperCase().startsWith('E23')
+          ? `E/23/${prefix.slice(3).padStart(3, '0')}`
+          : `E/23/${prefix.toUpperCase()}`;
+
+        member = {
+          id: normPrefix,
+          regNo: formattedRegNo,
+          universityEmail: authEmail,
+          personalEmail: '',
+          name: userInfo.name || prefix.toUpperCase(),
+          nickname: userInfo.given_name || prefix,
+          birthday: '',
+          photo: userInfo.picture || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(prefix)}`,
+          role: "E/23 Engineer",
+          department: "Engineering Faculty",
+          quote: "Details not included yet — will be updated upon first login.",
+          detailsPending: true,
+          social: {}
+        };
+
+        setBatchmates(prev => {
+          const updated = [member, ...prev];
+          localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+          return updated;
+        });
+      } else {
+        throw new Error(
+          `Google account "${userInfo.email}" is not listed in the E/23 batch database.\n\n` +
+          `Please sign in with your official university Google account (@eng.pdn.ac.lk), or link this personal email in your profile settings after logging in.`
+        );
+      }
+    }
+
+    // Create a secured session with 7-day expiration
+    createSession(member, authEmail);
+    setCurrentUser(member);
+    return member;
+  };
+
+  // Authorize & Link Google Account directly from profile
+  const linkGoogleAccountViaOAuth = async () => {
+    if (!currentUser) throw new Error('Must be logged in to link account.');
+    const tokenResponse = await requestGoogleDriveToken(googleClientId);
+    const token = tokenResponse.access_token;
+    setGoogleAccessToken(token);
+    sessionStorage.setItem('site23_gdrive_access_token', token);
+
+    const userInfo = await fetchGoogleUserInfo(token);
+    const verifiedEmail = (userInfo.email || '').toLowerCase().trim();
+
+    if (!verifiedEmail) throw new Error('Could not retrieve email from Google.');
+
+    // Save into database for this user
+    const updatedUser = {
+      ...currentUser,
+      personalEmail: verifiedEmail
+    };
+
+    setCurrentUser(updatedUser);
+    setBatchmates(prev => {
+      const updated = prev.map(m => m.id === updatedUser.id ? updatedUser : m);
+      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+      return updated;
+    });
+
+    // Update active session
+    const activeSession = getValidSession();
+    if (activeSession) {
+      activeSession.email = verifiedEmail;
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
+    }
+
+    return { success: true, email: verifiedEmail };
+  };
+
+  // Logout (purges all active tokens & session keys)
+  const logout = () => {
+    setCurrentUser(null);
+    setGoogleAccessToken('');
+    sessionStorage.removeItem('site23_gdrive_access_token');
+    localStorage.removeItem('site23_pera_currentUser_v4');
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+  };
+
+  // Disconnect Drive
+  const disconnectGoogleDrive = () => {
+    setGoogleAccessToken('');
+    sessionStorage.removeItem('site23_gdrive_access_token');
+    setSyncedDrivePhotos([]);
+    localStorage.removeItem('site23_synced_drive_photos_v1');
+  };
+
+  // Update own profile (persists personalEmail, photo, etc. to database)
+  const updateProfile = (updatedFields) => {
+    if (!currentUser) return;
+
+    const cleanFields = { ...updatedFields };
+    if (cleanFields.personalEmail !== undefined) {
+      cleanFields.personalEmail = cleanFields.personalEmail ? cleanFields.personalEmail.trim().toLowerCase() : '';
+    }
+
+    const updatedUser = { ...currentUser, ...cleanFields };
+    setCurrentUser(updatedUser);
+    setBatchmates(prev => {
+      const updated = prev.map(m => m.id === updatedUser.id ? updatedUser : m);
+      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+      return updated;
+    });
+
+    const activeSession = getValidSession();
+    if (activeSession && cleanFields.personalEmail) {
+      activeSession.email = cleanFields.personalEmail;
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
+    }
+
+    return updatedUser;
+  };
+
+  // Admin identification for E/23/020 (G. Arunothayan)
+  const isAdmin = !!(currentUser && (
+    normalizeRegNo(currentUser.regNo) === 'e23020' ||
+    currentUser.id === 'e23020' ||
+    currentUser.universityEmail?.toLowerCase() === 'e23020@eng.pdn.ac.lk' ||
+    currentUser.personalEmail?.toLowerCase() === 'peradeniyaguys@gmail.com'
+  ));
+
+  // Admin capability: update any member
+  const updateMemberAsAdmin = (memberId, updatedFields) => {
+    if (!isAdmin) {
+      throw new Error('Unauthorized: Admin privileges required.');
+    }
+    const cleanFields = { ...updatedFields };
+    if (cleanFields.personalEmail !== undefined) {
+      cleanFields.personalEmail = cleanFields.personalEmail ? cleanFields.personalEmail.trim().toLowerCase() : '';
+    }
+    if (cleanFields.universityEmail !== undefined) {
+      cleanFields.universityEmail = cleanFields.universityEmail ? cleanFields.universityEmail.trim().toLowerCase() : '';
+    }
+    setBatchmates(prev => {
+      const updated = prev.map(m => m.id === memberId ? { ...m, ...cleanFields } : m);
+      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+      return updated;
+    });
+    if (currentUser?.id === memberId) {
+      setCurrentUser(prev => ({ ...prev, ...cleanFields }));
+    }
+  };
+
+  // Admin capability: add a new member
+  const addNewMemberAsAdmin = (newMember) => {
+    if (!isAdmin) {
+      throw new Error('Unauthorized: Admin privileges required.');
+    }
+    const cleanMember = {
+      ...newMember,
+      personalEmail: (newMember.personalEmail || '').trim().toLowerCase(),
+      universityEmail: (newMember.universityEmail || '').trim().toLowerCase()
+    };
+    setBatchmates(prev => {
+      const updated = [cleanMember, ...prev];
+      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Admin capability: delete a member
+  const deleteMemberAsAdmin = (memberId) => {
+    if (!isAdmin) {
+      throw new Error('Unauthorized: Admin privileges required.');
+    }
+    setBatchmates(prev => prev.filter(m => m.id !== memberId));
+  };
+
+  // Admin capability: reset batch roster to fresh defaults
+  const resetBatchRosterToDefaults = () => {
+    if (!isAdmin) {
+      throw new Error('Unauthorized: Admin privileges required.');
+    }
+    setBatchmates(initialBatchmates);
+    localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(initialBatchmates));
+  };
+
+  // Verification login with registered Google/University Email
+  const loginWithGoogle = (emailInput) => {
+    const cleanEmail = (emailInput || '').trim().toLowerCase();
+    const member = batchmates.find(m => 
+      m.universityEmail?.toLowerCase() === cleanEmail ||
+      m.personalEmail?.toLowerCase() === cleanEmail ||
+      (m.id === 'e23020' && cleanEmail === 'peradeniyaguys@gmail.com')
+    );
+    if (!member) {
+      throw new Error(
+        `Email "${emailInput}" is not recognized in the E/23 batch database.\n\n` +
+        `Please sign in via Google OAuth with your official university account (@eng.pdn.ac.lk).`
+      );
+    }
+    createSession(member, cleanEmail);
+    setCurrentUser(member);
+    return member;
+  };
+
+  return (
+    <AuthContext.Provider value={{
+      currentUser,
+      isLoggedIn: !!currentUser,
+      isAdmin,
+      batchmates,
+      googleAccessToken,
+      googleClientId,
+      syncedDrivePhotos,
+      isSyncingDrive,
+      syncProgress,
+      driveSyncError,
+      saveGoogleClientId,
+      syncDrivePhotos,
+      loginWithGoogleOAuth,
+      linkGoogleAccountViaOAuth,
+      disconnectGoogleDrive,
+      loginWithGoogle,
+      logout,
+      updateProfile,
+      updateMemberAsAdmin,
+      addNewMemberAsAdmin,
+      deleteMemberAsAdmin,
+      resetBatchRosterToDefaults
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
