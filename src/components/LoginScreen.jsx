@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Lock, Mail, AlertCircle, CheckCircle2, GraduationCap, ShieldCheck, Settings, Loader2 } from 'lucide-react';
+import { Lock, AlertCircle, CheckCircle2, GraduationCap, ShieldCheck, Settings, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { batchInfo } from '../data/batchData';
 import GoogleOAuthModal from './GoogleOAuthModal';
 
 export default function LoginScreen() {
-  const { loginWithGoogleOAuth, loginWithGoogle, googleClientId } = useAuth();
-  const [emailInput, setEmailInput] = useState('');
+  const { loginWithGoogleOAuth, googleClientId } = useAuth();
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,27 +32,6 @@ export default function LoginScreen() {
       if (err.message?.includes('Client ID')) {
         setIsOAuthModalOpen(true);
       }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Direct email verification sign-in
-  const handleEmailSubmit = (e) => {
-    e.preventDefault();
-    setError('');
-    setIsLoading(true);
-
-    try {
-      if (!emailInput) {
-        setError('Please enter your university or linked personal Google email address.');
-        setIsLoading(false);
-        return;
-      }
-      const member = loginWithGoogle(emailInput);
-      setSuccessMsg(`Authenticated as ${member.name}! Secure session created...`);
-    } catch (err) {
-      setError(err.message);
     } finally {
       setIsLoading(false);
     }
@@ -155,44 +133,9 @@ export default function LoginScreen() {
 
             <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
               <Lock className="w-3.5 h-3.5 text-emerald-400" />
-              <span>1-Click Verified Login • University & Registered Personal Gmail</span>
+              <span>Cryptographic OAuth 2.0 • University & Registered Personal Gmail</span>
             </div>
           </div>
-
-          {/* Divider */}
-          <div className="flex items-center gap-3 text-slate-500 text-xs my-6">
-            <div className="flex-1 h-px bg-slate-800" />
-            <span>or verify registered email</span>
-            <div className="flex-1 h-px bg-slate-800" />
-          </div>
-
-          {/* Secondary Email Verification Form */}
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                University Email or Registered Personal Gmail
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="e.g. e23020@eng.pdn.ac.lk or name@gmail.com"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-600 text-xs sm:text-sm focus:outline-none focus:border-indigo-500 transition-colors"
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 disabled:opacity-60"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Verify Registered Email & Enter</span>
-            </button>
-          </form>
 
           {/* Security & Access Guidelines Card */}
           <div className="mt-8 p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 text-[11px] text-slate-400 space-y-2">

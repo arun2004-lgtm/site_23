@@ -248,9 +248,9 @@ export function AuthProvider({ children }) {
       }
     }
 
-    // If still not found, check if it's an official university domain account (@eng.pdn.ac.lk or starting with e23)
+    // If still not found, check if it's an official university domain account (@eng.pdn.ac.lk)
     if (!member) {
-      if (authEmail.endsWith(batchInfo.universityDomain.toLowerCase()) || authEmail.startsWith('e23')) {
+      if (authEmail.endsWith(batchInfo.universityDomain.toLowerCase())) {
         const prefix = authEmail.split('@')[0];
         const normPrefix = normalizeRegNo(prefix);
         const formattedRegNo = prefix.toUpperCase().startsWith('E23')
@@ -345,38 +345,78 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('site23_synced_drive_photos_v1');
   };
 
-  // Update own profile (persists personalEmail, photo, etc. to database)
+  // Update own profile (safely persists profile edits with strict privilege validation)
   const updateProfile = (updatedFields) => {
     if (!currentUser) return;
 
-    const cleanFields = { ...updatedFields };
-    if (cleanFields.personalEmail !== undefined) {
-      cleanFields.personalEmail = cleanFields.personalEmail ? cleanFields.personalEmail.trim().toLowerCase() : '';
+    // Security: Only allow safe presentation fields to be updated by a member
+    const safeUpdates = {};
+    if (updatedFields.nickname !== undefined) safeUpdates.nickname = String(updatedFields.nickname || '').slice(0, 60);
+    if (updatedFields.birthday !== undefined) safeUpdates.birthday = updatedFields.birthday || '';
+    if (updatedFields.photo !== undefined) safeUpdates.photo = updatedFields.photo || '';
+    if (updatedFields.quote !== undefined) safeUpdates.quote = String(updatedFields.quote || '').slice(0, 300);
+    if (updatedFields.department !== undefined) safeUpdates.department = updatedFields.department || '';
+    if (updatedFields.social !== undefined) safeUpdates.social = updatedFields.social || {};
+    safeUpdates.detailsPending = false;
+
+    // Security: Validate personalEmail uniqueness and prevent admin email spoofing
+    if (updatedFields.personalEmail !== undefined) {
+      const targetEmail = (updatedFields.personalEmail || '').trim().toLowerCase();
+      if (targetEmail) {
+        // Disallow linking protected admin emails to any other student ID
+        if (
+          (targetEmail === 'peradeniyaguys@gmail.com' || targetEmail === 'e23020@eng.pdn.ac.lk') &&
+          currentUser.id !== 'e23020'
+        ) {
+          throw new Error('This email address is reserved for administrator access.');
+        }
+
+        // Disallow claiming another student's email
+        const conflict = batchmates.find(m => 
+          m.id !== currentUser.id && (
+            m.personalEmail?.toLowerCase() === targetEmail ||
+            m.universityEmail?.toLowerCase() === targetEmail
+          )
+        );
+        if (conflict) {
+          throw new Error(`Email "${targetEmail}" is already linked to another batchmate (${conflict.name}).`);
+        }
+      }
+      safeUpdates.personalEmail = targetEmail;
     }
 
-    const updatedUser = { ...currentUser, ...cleanFields };
+    // Security: Enforce immutability of academic identity
+    const updatedUser = {
+      ...currentUser,
+      ...safeUpdates,
+      id: currentUser.id,
+      regNo: currentUser.regNo,
+      universityEmail: currentUser.universityEmail
+    };
+
     setCurrentUser(updatedUser);
     setBatchmates(prev => {
-      const updated = prev.map(m => m.id === updatedUser.id ? updatedUser : m);
+      const updated = prev.map(m => m.id === currentUser.id ? updatedUser : m);
       localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
       return updated;
     });
 
     const activeSession = getValidSession();
-    if (activeSession && cleanFields.personalEmail) {
-      activeSession.email = cleanFields.personalEmail;
+    if (activeSession && safeUpdates.personalEmail) {
+      activeSession.email = safeUpdates.personalEmail;
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
     }
 
     return updatedUser;
   };
 
-  // Admin identification for E/23/020 (G. Arunothayan)
+  // Strict Admin identification for E/23/020 (G. Arunothayan)
   const isAdmin = !!(currentUser && (
-    normalizeRegNo(currentUser.regNo) === 'e23020' ||
-    currentUser.id === 'e23020' ||
-    currentUser.universityEmail?.toLowerCase() === 'e23020@eng.pdn.ac.lk' ||
-    currentUser.personalEmail?.toLowerCase() === 'peradeniyaguys@gmail.com'
+    (currentUser.id === 'e23020' || normalizeRegNo(currentUser.regNo) === 'e23020') &&
+    (
+      currentUser.universityEmail?.toLowerCase() === 'e23020@eng.pdn.ac.lk' ||
+      currentUser.personalEmail?.toLowerCase() === 'peradeniyaguys@gmail.com'
+    )
   ));
 
   // Admin capability: update any member
@@ -435,25 +475,6 @@ export function AuthProvider({ children }) {
     localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(initialBatchmates));
   };
 
-  // Verification login with registered Google/University Email
-  const loginWithGoogle = (emailInput) => {
-    const cleanEmail = (emailInput || '').trim().toLowerCase();
-    const member = batchmates.find(m => 
-      m.universityEmail?.toLowerCase() === cleanEmail ||
-      m.personalEmail?.toLowerCase() === cleanEmail ||
-      (m.id === 'e23020' && cleanEmail === 'peradeniyaguys@gmail.com')
-    );
-    if (!member) {
-      throw new Error(
-        `Email "${emailInput}" is not recognized in the E/23 batch database.\n\n` +
-        `Please sign in via Google OAuth with your official university account (@eng.pdn.ac.lk).`
-      );
-    }
-    createSession(member, cleanEmail);
-    setCurrentUser(member);
-    return member;
-  };
-
   return (
     <AuthContext.Provider value={{
       currentUser,
@@ -471,7 +492,6 @@ export function AuthProvider({ children }) {
       loginWithGoogleOAuth,
       linkGoogleAccountViaOAuth,
       disconnectGoogleDrive,
-      loginWithGoogle,
       logout,
       updateProfile,
       updateMemberAsAdmin,
