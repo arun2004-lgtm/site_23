@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Cake, Sparkles, Copy, Check, 
+  Sparkles, Copy, Check, 
   PartyPopper, Send, Flame, RefreshCw, 
   Download, Smartphone, CheckCircle2, Loader2 
 } from 'lucide-react';
 import { 
   isBirthdayToday, 
   formatBirthday, 
-  getDaysUntilBirthday, 
-  sortByUpcomingBirthday, 
   getTurningAge 
 } from '../utils/birthdayUtils';
 import { 
@@ -20,6 +18,8 @@ import {
  * BirthdayPoster: The official commemorative Birthday Poster & 9:16 WhatsApp Story
  * Creator for the Birthday Tab. Displays the celebrant's photo in the golden framed
  * template placeholder with direct WhatsApp Status sharing and HD download capabilities.
+ * 
+ * NOTE: Visible ONLY on the celebrant's actual birthday date!
  */
 export default function BirthdayPoster({ batchmates, onTriggerConfetti }) {
   const [copiedId, setCopiedId] = useState(null);
@@ -32,19 +32,7 @@ export default function BirthdayPoster({ batchmates, onTriggerConfetti }) {
 
   // Find real celebrants whose birthday is today
   const realCelebrants = batchmates.filter(m => m.birthday && isBirthdayToday(m.birthday));
-  
-  // Sorted upcoming members with birthdays
-  const withBirthdays = batchmates.filter(m => m.birthday && m.birthday.trim() !== '');
-  const upcomingSorted = sortByUpcomingBirthday(withBirthdays);
-  const nextCelebrant = upcomingSorted.find(m => getDaysUntilBirthday(m.birthday) > 0);
-
   const hasRealBirthdayToday = realCelebrants.length > 0;
-
-  // Active celebrants pool:
-  // If real birthday today -> real celebrants
-  // Else -> all sorted batchmates starting with next upcoming celebrant
-  const celebrantsPool = hasRealBirthdayToday ? realCelebrants : upcomingSorted;
-  const currentCelebrant = celebrantsPool[selectedMemberIndex] || celebrantsPool[0] || batchmates[0];
 
   // Auto-trigger confetti when there's an actual birthday today
   useEffect(() => {
@@ -56,8 +44,13 @@ export default function BirthdayPoster({ batchmates, onTriggerConfetti }) {
     }
   }, [hasRealBirthdayToday, onTriggerConfetti]);
 
+  // VISIBILITY RULE: Poster is visible ONLY on the birthday date!
+  if (!hasRealBirthdayToday || realCelebrants.length === 0) {
+    return null;
+  }
+
+  const currentCelebrant = realCelebrants[selectedMemberIndex] || realCelebrants[0];
   const turningAge = currentCelebrant?.birthday ? getTurningAge(currentCelebrant.birthday) : null;
-  const daysUntil = currentCelebrant?.birthday ? getDaysUntilBirthday(currentCelebrant.birthday) : null;
 
   const handleCopyWish = (person) => {
     const age = getTurningAge(person.birthday);
@@ -138,50 +131,35 @@ export default function BirthdayPoster({ batchmates, onTriggerConfetti }) {
 
       <div className="relative bg-slate-950/95 rounded-[22px] p-6 sm:p-8 md:p-10 backdrop-blur-2xl border border-amber-400/20">
         
-        {/* Top Header Mode Bar: Real Birthday Celebration or Upcoming / Preview Cycler */}
+        {/* Top Header Mode Bar: Real Birthday Celebration */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 text-xs">
-          {hasRealBirthdayToday ? (
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-rose-500/20 border border-amber-400/40 text-amber-300 font-bold">
-              <PartyPopper className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>🎉 Today's Official Birthday Celebration Poster!</span>
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-300">
-              <Cake className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>
-                {nextCelebrant && nextCelebrant.id === currentCelebrant.id ? (
-                  <>
-                    Next Upcoming Birthday: <strong className="text-amber-400">{currentCelebrant.name}</strong> ({daysUntil === 1 ? 'Tomorrow!' : `in ${daysUntil} days`})
-                  </>
-                ) : (
-                  <>
-                    Birthday Poster Preview: <strong className="text-amber-400">{currentCelebrant.name}</strong>
-                  </>
-                )}
-              </span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-rose-500/20 border border-amber-400/40 text-amber-300 font-bold">
+            <PartyPopper className="w-4 h-4 text-amber-400 shrink-0" />
+            <span>🎉 Today's Official Birthday Celebration Poster!</span>
+          </div>
+
+          {/* Member Cycle / Switcher (if multiple celebrants today) */}
+          {realCelebrants.length > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setSelectedMemberIndex((prev) => (prev + 1) % realCelebrants.length);
+                  if (onTriggerConfetti) onTriggerConfetti();
+                }}
+                className="px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 font-semibold flex items-center gap-1.5 transition-colors border border-amber-400/30 active:scale-95 shadow-sm"
+                title="Switch to next birthday celebrant today"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
+                <span>Switch Celebrant ({selectedMemberIndex + 1}/{realCelebrants.length})</span>
+              </button>
             </div>
           )}
-
-          {/* Member Cycle / Preview Tool */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                setSelectedMemberIndex((prev) => (prev + 1) % celebrantsPool.length);
-                if (onTriggerConfetti) onTriggerConfetti();
-              }}
-              className="px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 font-semibold flex items-center gap-1.5 transition-colors border border-amber-400/30 active:scale-95 shadow-sm"
-              title="Cycle to next member to see their birthday poster"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-amber-400" />
-              <span>Switch Member Poster</span>
-            </button>
-          </div>
         </div>
 
         {/* Celebrant Tabs (if multiple celebrants today) */}
-        {hasRealBirthdayToday && celebrantsPool.length > 1 && (
+        {realCelebrants.length > 1 && (
           <div className="flex items-center justify-center gap-2 mb-6">
-            {celebrantsPool.map((c, idx) => (
+            {realCelebrants.map((c, idx) => (
               <button
                 key={c.id}
                 onClick={() => setSelectedMemberIndex(idx)}
