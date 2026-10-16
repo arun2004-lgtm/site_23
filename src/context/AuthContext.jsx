@@ -5,6 +5,13 @@ import {
   fetchGoogleUserInfo, 
   syncAllBatchFolders 
 } from '../services/googleDriveService';
+import {
+  fetchBatchmatesFromCloud,
+  updateMemberInCloud,
+  insertMemberInCloud,
+  deleteMemberInCloud,
+  subscribeToBatchmateRealtime
+} from '../services/supabaseClient';
 
 const AuthContext = createContext(null);
 
@@ -129,7 +136,7 @@ export function AuthProvider({ children }) {
   const [syncProgress, setSyncProgress] = useState(null);
   const [driveSyncError, setDriveSyncError] = useState('');
 
-  // Persist batchmates whenever they change
+  // Persist batchmates whenever they change locally
   useEffect(() => {
     try {
       localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(batchmates));
@@ -137,6 +144,72 @@ export function AuthProvider({ children }) {
       console.error(e);
     }
   }, [batchmates]);
+
+  // Connect to Supabase Cloud Database on app mount and subscribe to live changes
+  useEffect(() => {
+    let isMounted = true;
+
+    // 1. Fetch initial live roster from Supabase
+    fetchBatchmatesFromCloud().then((cloudRoster) => {
+      if (!isMounted || !cloudRoster || cloudRoster.length === 0) return;
+
+      setBatchmates(cloudRoster);
+      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(cloudRoster));
+
+      // Keep currentUser in sync with cloud data
+      setCurrentUser((prev) => {
+        if (!prev) return null;
+        const updated = cloudRoster.find(m => m.id === prev.id);
+        if (updated) {
+          localStorage.setItem('site23_pera_currentUser_v4', JSON.stringify(updated));
+          return updated;
+        }
+        return prev;
+      });
+    });
+
+    // 2. Subscribe to Real-time PostgreSQL updates (broadcasts from any student's phone)
+    const unsubscribe = subscribeToBatchmateRealtime(
+      (newMember) => {
+        if (!isMounted || !newMember) return;
+        setBatchmates((prev) => {
+          if (prev.some(m => m.id === newMember.id)) return prev;
+          const updated = [newMember, ...prev];
+          localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+          return updated;
+        });
+      },
+      (updatedMember) => {
+        if (!isMounted || !updatedMember) return;
+        setBatchmates((prev) => {
+          const updated = prev.map(m => m.id === updatedMember.id ? { ...m, ...updatedMember } : m);
+          localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+          return updated;
+        });
+        setCurrentUser((prev) => {
+          if (prev?.id === updatedMember.id) {
+            const merged = { ...prev, ...updatedMember };
+            localStorage.setItem('site23_pera_currentUser_v4', JSON.stringify(merged));
+            return merged;
+          }
+          return prev;
+        });
+      },
+      (deletedId) => {
+        if (!isMounted || !deletedId) return;
+        setBatchmates((prev) => {
+          const updated = prev.filter(m => m.id !== deletedId);
+          localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+          return updated;
+        });
+      }
+    );
+
+    return () => {
+      isMounted = false;
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, []);
 
   // Persist currentUser and keep active session in sync
   useEffect(() => {
@@ -245,6 +318,9 @@ export function AuthProvider({ children }) {
           localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
           return updated;
         });
+        updateMemberInCloud(member.id, { personalEmail: member.personalEmail }).catch(err => {
+          console.error('Failed to sync personalEmail to Supabase cloud:', err);
+        });
       }
     }
 
@@ -277,6 +353,9 @@ export function AuthProvider({ children }) {
           const updated = [member, ...prev];
           localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
           return updated;
+        });
+        insertMemberInCloud(member).catch(err => {
+          console.error('Failed to insert new member to Supabase cloud:', err);
         });
       } else {
         throw new Error(
@@ -324,6 +403,11 @@ export function AuthProvider({ children }) {
       activeSession.email = verifiedEmail;
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
     }
+
+    // Sync to Supabase cloud database
+    updateMemberInCloud(currentUser.id, { personalEmail: verifiedEmail }).catch(err => {
+      console.error('Failed to sync linked personalEmail to Supabase cloud:', err);
+    });
 
     return { success: true, email: verifiedEmail };
   };
@@ -407,6 +491,11 @@ export function AuthProvider({ children }) {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
     }
 
+    // Persist changes to Supabase cloud database so all students see updates live
+    updateMemberInCloud(currentUser.id, safeUpdates).catch(err => {
+      console.error('Failed to sync profile update to Supabase cloud:', err);
+    });
+
     return updatedUser;
   };
 
@@ -439,6 +528,10 @@ export function AuthProvider({ children }) {
     if (currentUser?.id === memberId) {
       setCurrentUser(prev => ({ ...prev, ...cleanFields }));
     }
+    // Sync update to Supabase cloud
+    updateMemberInCloud(memberId, cleanFields).catch(err => {
+      console.error('Failed to sync admin update to Supabase cloud:', err);
+    });
   };
 
   // Admin capability: add a new member
@@ -456,6 +549,10 @@ export function AuthProvider({ children }) {
       localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
       return updated;
     });
+    // Sync insert to Supabase cloud
+    insertMemberInCloud(cleanMember).catch(err => {
+      console.error('Failed to insert new member to Supabase cloud:', err);
+    });
   };
 
   // Admin capability: delete a member
@@ -463,7 +560,15 @@ export function AuthProvider({ children }) {
     if (!isAdmin) {
       throw new Error('Unauthorized: Admin privileges required.');
     }
-    setBatchmates(prev => prev.filter(m => m.id !== memberId));
+    setBatchmates(prev => {
+      const updated = prev.filter(m => m.id !== memberId);
+      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+      return updated;
+    });
+    // Sync delete to Supabase cloud
+    deleteMemberInCloud(memberId).catch(err => {
+      console.error('Failed to delete member from Supabase cloud:', err);
+    });
   };
 
   // Admin capability: reset batch roster to fresh defaults
