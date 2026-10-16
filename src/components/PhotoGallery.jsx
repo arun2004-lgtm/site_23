@@ -90,6 +90,7 @@ export default function PhotoGallery({
   const [selectedDriveFolder, setSelectedDriveFolder] = useState(null);
   const [showAccessHelp, setShowAccessHelp] = useState(false);
   const [showLoadingHelp, setShowLoadingHelp] = useState(false);
+  const [showIosTip, setShowIosTip] = useState(false);
   const [isOAuthModalOpen, setIsOAuthModalOpen] = useState(false);
   const [shuffleOrder, setShuffleOrder] = useState(0);
 
@@ -866,6 +867,54 @@ export default function PhotoGallery({
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* iPhone / Safari Cookie Notice & Instant App Shortcut */}
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-950 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-start gap-2.5 text-slate-300">
+              <span className="text-base shrink-0">📱</span>
+              <div>
+                <span className="font-bold text-amber-300">iPhone / Safari User?</span>
+                <p className="text-[11px] text-slate-300 mt-0.5">
+                  If Google displays <em>"Can't access your Google Account"</em> below, Apple Safari is blocking third-party iframe cookies.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+              <a
+                href={activeVaultFolder?.driveFolderUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
+              >
+                <span>Open in Drive App</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+
+              <button
+                onClick={() => setShowIosTip(!showIosTip)}
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white text-xs border border-slate-700 transition-colors shrink-0"
+              >
+                {showIosTip ? 'Hide Guide' : 'How to Fix on iPhone'}
+              </button>
+            </div>
+          </div>
+
+          {/* Collapsible iOS Safari Fix Guide */}
+          {showIosTip && (
+            <div className="p-4 rounded-2xl bg-slate-950 border border-amber-500/30 text-xs text-slate-300 space-y-2.5 animate-in fade-in">
+              <div className="font-bold text-amber-300 flex items-center justify-between">
+                <span>To load Google Drive directly inside the webpage on iPhone:</span>
+                <button onClick={() => setShowIosTip(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
+              </div>
+              <ol className="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
+                <li>Open iPhone <strong>Settings</strong> app.</li>
+                <li>Scroll down and tap <strong>Safari</strong> (or <strong>Apps ➔ Safari</strong> on iOS 18).</li>
+                <li>Under <strong>Privacy & Security</strong>, turn <strong>OFF</strong> <span className="text-amber-300 font-semibold">"Prevent Cross-Site Tracking"</span>.</li>
+                <li>Return here and refresh — the entire Google Drive folder will load directly inside the frame!</li>
+              </ol>
             </div>
           )}
 
