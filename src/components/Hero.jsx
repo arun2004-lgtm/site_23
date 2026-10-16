@@ -3,10 +3,10 @@ import { Cake, Camera, Users, FolderArchive, ArrowRight, GraduationCap, Calendar
 
 export default function Hero({ batchInfo, setActiveTab, onOpenGuide }) {
   return (
-    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 p-8 sm:p-12">
+    <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 p-6 sm:p-12 transform-gpu isolate">
       {/* Background accents */}
-      <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/3 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 translate-y-1/3 -translate-x-1/3 w-96 h-96 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/3 w-80 sm:w-96 h-80 sm:h-96 bg-indigo-600/20 rounded-full blur-2xl sm:blur-3xl pointer-events-none transform-gpu" />
+      <div className="absolute bottom-0 left-0 translate-y-1/3 -translate-x-1/3 w-80 sm:w-96 h-80 sm:h-96 bg-amber-500/15 rounded-full blur-2xl sm:blur-3xl pointer-events-none transform-gpu" />
 
       <div className="relative z-10 max-w-4xl mx-auto text-center">
         {/* Top badge */}
@@ -61,35 +61,35 @@ export default function Hero({ batchInfo, setActiveTab, onOpenGuide }) {
         </div>
 
         {/* Stats Grid */}
-        <div className="mt-12 pt-8 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
-          <div className="p-3 rounded-2xl bg-slate-950/50 border border-slate-800/50">
-            <div className="text-2xl sm:text-3xl font-extrabold text-amber-400">4 Semesters</div>
+        <div className="mt-10 pt-6 sm:mt-12 sm:pt-8 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center">
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-950/90 border border-slate-800 shadow-sm transform-gpu">
+            <div className="text-xl sm:text-3xl font-extrabold text-amber-400">4 Semesters</div>
             <div className="text-xs text-slate-400 mt-1 flex items-center justify-center gap-1">
-              <GraduationCap className="w-3.5 h-3.5 text-amber-400" />
+              <GraduationCap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span>Conquered Together</span>
             </div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-slate-950/50 border border-slate-800/50">
-            <div className="text-2xl sm:text-3xl font-extrabold text-rose-400">Oct 10, 2024</div>
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-950/90 border border-slate-800 shadow-sm transform-gpu">
+            <div className="text-xl sm:text-3xl font-extrabold text-rose-400">Oct 10, 2024</div>
             <div className="text-xs text-slate-400 mt-1 flex items-center justify-center gap-1">
-              <Calendar className="w-3.5 h-3.5 text-rose-400" />
-              <span>Batch Inception Date</span>
+              <Calendar className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <span>Inception Date</span>
             </div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-slate-950/50 border border-slate-800/50">
-            <div className="text-2xl sm:text-3xl font-extrabold text-indigo-400">45</div>
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-950/90 border border-slate-800 shadow-sm transform-gpu">
+            <div className="text-xl sm:text-3xl font-extrabold text-indigo-400">45</div>
             <div className="text-xs text-slate-400 mt-1 flex items-center justify-center gap-1">
-              <Users className="w-3.5 h-3.5 text-indigo-400" />
+              <Users className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               <span>Batchmates</span>
             </div>
           </div>
 
-          <div className="p-3 rounded-2xl bg-slate-950/50 border border-slate-800/50">
-            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-400">1,200+</div>
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-950/90 border border-slate-800 shadow-sm transform-gpu">
+            <div className="text-xl sm:text-3xl font-extrabold text-emerald-400">1,200+</div>
             <div className="text-xs text-slate-400 mt-1 flex items-center justify-center gap-1">
-              <FolderArchive className="w-3.5 h-3.5 text-emerald-400" />
+              <FolderArchive className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>Drive Photos Saved</span>
             </div>
           </div>

@@ -255,16 +255,6 @@ export default function Navbar({
             </button>
           )}
 
-          {/* Quick Celebrate Confetti on Mobile */}
-          <button
-            onClick={onTriggerConfetti}
-            className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-400 hover:text-amber-400 transition-all active:scale-90"
-            title="Celebrate!"
-          >
-            <Sparkles className="w-5 h-5 mb-0.5 text-amber-400" />
-            <span className="text-[10px]">Wish!</span>
-          </button>
-
         </div>
       </nav>
     </>
