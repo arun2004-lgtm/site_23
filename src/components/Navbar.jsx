@@ -46,7 +46,13 @@ export default function Navbar({
           {/* Desktop Navigation Tabs (Hidden on mobile) */}
           <nav className="hidden md:flex items-center gap-1.5">
             <button
-              onClick={() => setActiveTab('home')}
+              onClick={() => {
+                if (activeTab === 'home') {
+                  window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+                } else {
+                  setActiveTab('home');
+                }
+              }}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'home'
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
@@ -58,7 +64,13 @@ export default function Navbar({
             </button>
 
             <button
-              onClick={() => setActiveTab('birthdays')}
+              onClick={() => {
+                if (activeTab === 'birthdays') {
+                  window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+                } else {
+                  setActiveTab('birthdays');
+                }
+              }}
               className={`relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'birthdays'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
@@ -75,7 +87,13 @@ export default function Navbar({
             </button>
 
             <button
-              onClick={() => setActiveTab('gallery')}
+              onClick={() => {
+                if (activeTab === 'gallery') {
+                  window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+                } else {
+                  setActiveTab('gallery');
+                }
+              }}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'gallery'
                   ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
@@ -172,12 +190,21 @@ export default function Navbar({
       </header>
 
       {/* Mobile Bottom Navigation Bar (Thumb-friendly & 100% Responsive) */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/90 px-3 py-1.5 safe-area-bottom shadow-2xl">
+      <nav 
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/90 px-3 pt-2 safe-area-bottom shadow-2xl transform-gpu isolate"
+        style={{ paddingBottom: 'max(0.75rem, calc(0.35rem + env(safe-area-inset-bottom, 0px)))' }}
+      >
         <div className="flex items-center justify-around max-w-md mx-auto">
           {/* Home Tab */}
           <button
-            onClick={() => setActiveTab('home')}
-            className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+            onClick={() => {
+              if (activeTab === 'home') {
+                window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+              } else {
+                setActiveTab('home');
+              }
+            }}
+            className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all min-w-[64px] min-h-[44px] ${
               activeTab === 'home'
                 ? 'text-amber-400 font-bold scale-105'
                 : 'text-slate-400 hover:text-slate-200'
@@ -192,8 +219,14 @@ export default function Navbar({
 
           {/* Birthdays Tab */}
           <button
-            onClick={() => setActiveTab('birthdays')}
-            className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+            onClick={() => {
+              if (activeTab === 'birthdays') {
+                window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+              } else {
+                setActiveTab('birthdays');
+              }
+            }}
+            className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all min-w-[64px] min-h-[44px] ${
               activeTab === 'birthdays'
                 ? 'text-amber-400 font-bold scale-105'
                 : 'text-slate-400 hover:text-slate-200'
@@ -215,8 +248,14 @@ export default function Navbar({
 
           {/* Drive Photos Tab */}
           <button
-            onClick={() => setActiveTab('gallery')}
-            className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all ${
+            onClick={() => {
+              if (activeTab === 'gallery') {
+                window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+              } else {
+                setActiveTab('gallery');
+              }
+            }}
+            className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all min-w-[64px] min-h-[44px] ${
               activeTab === 'gallery'
                 ? 'text-rose-400 font-bold scale-105'
                 : 'text-slate-400 hover:text-slate-200'
@@ -233,7 +272,7 @@ export default function Navbar({
           {isLoggedIn ? (
             <button
               onClick={onOpenEditProfile}
-              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-400 hover:text-amber-300 transition-all"
+              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-400 hover:text-amber-300 transition-all min-w-[64px] min-h-[44px]"
             >
               <div className="relative w-5 h-5 mb-0.5">
                 <img
@@ -248,7 +287,7 @@ export default function Navbar({
           ) : (
             <button
               onClick={onOpenLogin}
-              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-400 hover:text-amber-400 transition-all"
+              className="flex flex-col items-center justify-center py-1 px-3 rounded-xl text-slate-400 hover:text-amber-400 transition-all min-w-[64px] min-h-[44px]"
             >
               <LogIn className="w-5 h-5 mb-0.5 text-amber-400" />
               <span className="text-[10px]">Sign In</span>

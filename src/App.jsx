@@ -118,13 +118,20 @@ function AppContent() {
     }
   }, [isLoggedIn, currentUser]);
 
+  // Whenever the active tab changes, scroll immediately to the very top of the new tab
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, [activeTab]);
+
   // Require login first before accessing the whole website
   if (!isLoggedIn) {
     return <LoginScreen />;
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-amber-400 selection:text-slate-950 pb-20 md:pb-0">
+    <div className="min-h-screen min-h-[100dvh] bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-amber-400 selection:text-slate-950 pb-safe-nav md:pb-0">
       {/* Top Navigation */}
       <Navbar
         activeTab={activeTab}
