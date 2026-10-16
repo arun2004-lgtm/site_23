@@ -3,7 +3,7 @@ import { Shuffle, Sparkles, ExternalLink, Play, Pause, Folder, Maximize2 } from 
 import { photoAlbums } from '../data/batchData';
 import { formatGoogleDriveImageUrl } from '../utils/imageUtils';
 
-export default function MemoryShuffler({ onOpenLightbox }) {
+export default function MemoryShuffler({ onOpenLightbox, onSelectAlbum }) {
   // Flatten all sample photos from Year 1 and Year 2 with metadata
   const allMemories = photoAlbums.flatMap(album => 
     (album.samplePhotos || []).map(photo => ({
@@ -104,13 +104,26 @@ export default function MemoryShuffler({ onOpenLightbox }) {
           </div>
 
           {/* Current Album Info Box */}
-          <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5">
+          <div 
+            onClick={() => onSelectAlbum && onSelectAlbum(current.albumId)}
+            className={`p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3 text-xs transition-all ${
+              onSelectAlbum ? 'cursor-pointer hover:border-amber-500/50 hover:bg-slate-900 group/box' : ''
+            }`}
+            title={onSelectAlbum ? `Open "${current.albumTitle}" in Drive Photos` : undefined}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-750 text-amber-400 flex items-center justify-center shrink-0">
                 <Folder className="w-4 h-4" />
               </div>
-              <div>
-                <div className="font-bold text-white">{current.albumTitle}</div>
+              <div className="min-w-0">
+                <div className="font-bold text-white group-hover/box:text-amber-300 transition-colors truncate flex items-center gap-1.5">
+                  <span>{current.albumTitle}</span>
+                  {onSelectAlbum && (
+                    <span className="text-[10px] text-amber-400 font-semibold shrink-0">
+                      &rarr; View Album
+                    </span>
+                  )}
+                </div>
                 <div className="text-[11px] text-slate-400">Memory {currentIndex + 1} of {allMemories.length}</div>
               </div>
             </div>
@@ -119,7 +132,9 @@ export default function MemoryShuffler({ onOpenLightbox }) {
               href={current.driveFolderUrl}
               target="_blank"
               rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
               className="text-amber-400 hover:text-amber-300 flex items-center gap-1 font-semibold text-xs transition-colors shrink-0"
+              title="Open folder in Google Drive"
             >
               <span>Drive Folder</span>
               <ExternalLink className="w-3.5 h-3.5" />

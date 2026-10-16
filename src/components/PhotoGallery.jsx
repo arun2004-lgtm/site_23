@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Camera, 
   ExternalLink, 
@@ -26,7 +26,14 @@ import MemoryShuffler from './MemoryShuffler';
 import GoogleOAuthModal from './GoogleOAuthModal';
 import { formatGoogleDriveImageUrl } from '../utils/imageUtils';
 
-export default function PhotoGallery({ albums, onOpenLightbox, onPromptLogin, onOpenUploadModal }) {
+export default function PhotoGallery({ 
+  albums, 
+  selectedAlbumId,
+  onSelectAlbum,
+  onOpenLightbox, 
+  onPromptLogin, 
+  onOpenUploadModal 
+}) {
   const { 
     isLoggedIn, 
     currentUser, 
@@ -36,11 +43,49 @@ export default function PhotoGallery({ albums, onOpenLightbox, onPromptLogin, on
   } = useAuth();
 
   const [viewMode, setViewMode] = useState('liveVault'); // 'liveVault' (Native Restricted Drive Vault), 'stream' (Featured Photos Grid), or 'albums' (9 Drive Folders)
-  const [activeVaultFolder, setActiveVaultFolder] = useState(albums[0] || null);
+  const [activeVaultFolder, setActiveVaultFolder] = useState(() => {
+    if (selectedAlbumId) {
+      const found = albums.find(a => a.id === selectedAlbumId);
+      if (found) return found;
+    }
+    return albums[0] || null;
+  });
   const [vaultLayout, setVaultLayout] = useState('grid'); // 'grid' | 'list'
   const [isVaultExpanded, setIsVaultExpanded] = useState(false);
   const [vaultRefreshKey, setVaultRefreshKey] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState('ALL');
+
+  // React pattern: Adjust state during render when selectedAlbumId changes
+  const [prevSelectedAlbumId, setPrevSelectedAlbumId] = useState(selectedAlbumId);
+  if (selectedAlbumId !== prevSelectedAlbumId) {
+    setPrevSelectedAlbumId(selectedAlbumId);
+    if (selectedAlbumId) {
+      const target = albums.find(a => a.id === selectedAlbumId);
+      if (target) {
+        setActiveVaultFolder(target);
+        setViewMode('liveVault');
+      }
+    }
+  }
+
+  const vaultSectionRef = useRef(null);
+
+  // Smoothly scroll to the vault section and folder tab when selected album changes
+  useEffect(() => {
+    if (selectedAlbumId) {
+      const scrollTimer = setTimeout(() => {
+        if (vaultSectionRef.current) {
+          vaultSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        const tabBtn = document.getElementById(`vault-tab-${selectedAlbumId}`);
+        if (tabBtn) {
+          tabBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+      }, 120);
+
+      return () => clearTimeout(scrollTimer);
+    }
+  }, [selectedAlbumId]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDriveFolder, setSelectedDriveFolder] = useState(null);
   const [showAccessHelp, setShowAccessHelp] = useState(false);
@@ -654,7 +699,7 @@ export default function PhotoGallery({ albums, onOpenLightbox, onPromptLogin, on
       {/* VIEW 1: LIVE RESTRICTED GOOGLE DRIVE VAULT (ALL 9 FOLDERS)     */}
       {/* ============================================================== */}
       {viewMode === 'liveVault' && (
-        <div className="space-y-4">
+        <div ref={vaultSectionRef} className="space-y-4 scroll-mt-24">
           {/* Vault Folder Selector Bar */}
           <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -746,10 +791,14 @@ export default function PhotoGallery({ albums, onOpenLightbox, onPromptLogin, on
                 {albums.filter(a => a.id.startsWith('y1') || a.year === 'Year 1').map(album => (
                   <button
                     key={album.id}
-                    onClick={() => setActiveVaultFolder(album)}
+                    id={`vault-tab-${album.id}`}
+                    onClick={() => {
+                      setActiveVaultFolder(album);
+                      if (onSelectAlbum) onSelectAlbum(album.id);
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
                       activeVaultFolder?.id === album.id
-                        ? 'bg-amber-500 text-slate-950 font-bold shadow'
+                        ? 'bg-amber-500 text-slate-950 font-bold shadow ring-2 ring-amber-400/50'
                         : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
                     }`}
                   >
@@ -767,10 +816,14 @@ export default function PhotoGallery({ albums, onOpenLightbox, onPromptLogin, on
                 {albums.filter(a => a.id.startsWith('y2') || a.year === 'Year 2').map(album => (
                   <button
                     key={album.id}
-                    onClick={() => setActiveVaultFolder(album)}
+                    id={`vault-tab-${album.id}`}
+                    onClick={() => {
+                      setActiveVaultFolder(album);
+                      if (onSelectAlbum) onSelectAlbum(album.id);
+                    }}
                     className={`px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
                       activeVaultFolder?.id === album.id
-                        ? 'bg-emerald-500 text-slate-950 font-bold shadow'
+                        ? 'bg-emerald-500 text-slate-950 font-bold shadow ring-2 ring-emerald-400/50'
                         : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
                     }`}
                   >
@@ -781,6 +834,40 @@ export default function PhotoGallery({ albums, onOpenLightbox, onPromptLogin, on
               </div>
             </div>
           </div>
+
+          {/* Quick Photo Highlights for Active Album */}
+          {activeVaultFolder?.samplePhotos && activeVaultFolder.samplePhotos.length > 0 && (
+            <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-white flex items-center gap-1.5">
+                  <ImageIcon className="w-4 h-4 text-amber-400" />
+                  <span>{activeVaultFolder.title} — Key Highlights ({activeVaultFolder.samplePhotos.length})</span>
+                </span>
+                <span className="text-slate-400 text-[11px]">Click photo to open full-screen lightbox</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {activeVaultFolder.samplePhotos.map((photo, pIdx) => (
+                  <div
+                    key={pIdx}
+                    onClick={() => onOpenLightbox(activeVaultFolder.samplePhotos, pIdx, activeVaultFolder.driveFolderUrl)}
+                    className="relative aspect-video rounded-xl overflow-hidden cursor-pointer group border border-slate-800 hover:border-amber-400/60 transition-all hover:scale-[1.02] shadow-sm bg-slate-950"
+                  >
+                    <img
+                      src={formatGoogleDriveImageUrl(photo.url)}
+                      alt={photo.caption || activeVaultFolder.title}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                      <p className="text-[11px] text-white font-medium line-clamp-1">
+                        {photo.caption || activeVaultFolder.title}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Full-bleed Embedded Google Drive Iframe Grid */}
           <div className={`rounded-3xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl relative transition-all ${
