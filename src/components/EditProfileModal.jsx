@@ -163,29 +163,33 @@ export default function EditProfileModal({ isOpen, onClose }) {
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
-    updateProfile({
-      name: formData.name,
-      nickname: formData.nickname,
-      birthday: formData.birthday,
-      photo: formatGoogleDriveImageUrl(formData.photo.trim()),
-      role: formData.role,
-      department: formData.department,
-      quote: formData.quote,
-      personalEmail: formData.personalEmail.trim().toLowerCase(),
-      detailsPending: false,
-      social: {
-        instagram: formData.instagram,
-        linkedin: formData.linkedin,
-        phone: formData.phone
-      }
-    });
+    try {
+      updateProfile({
+        name: formData.name,
+        nickname: formData.nickname,
+        birthday: formData.birthday,
+        photo: formatGoogleDriveImageUrl(formData.photo.trim()),
+        role: formData.role,
+        department: formData.department,
+        quote: formData.quote,
+        personalEmail: formData.personalEmail.trim().toLowerCase(),
+        detailsPending: false,
+        social: {
+          instagram: formData.instagram,
+          linkedin: formData.linkedin,
+          phone: formData.phone
+        }
+      });
 
-    setSavedSuccess(true);
-    setTimeout(() => {
-      setSavedSuccess(false);
-      setHeicConverted(false);
-      onClose();
-    }, 1200);
+      setSavedSuccess(true);
+      setTimeout(() => {
+        setSavedSuccess(false);
+        setHeicConverted(false);
+        onClose();
+      }, 1200);
+    } catch (err) {
+      alert(err.message || 'Failed to save profile.');
+    }
   };
 
   const handleLinkGoogleOAuth = async () => {

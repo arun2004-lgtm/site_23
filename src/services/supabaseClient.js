@@ -18,9 +18,10 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 export function toDbRow(member) {
   const row = {
     id: member.id,
-    name: member.name,
     updated_at: new Date().toISOString()
   };
+
+  if (member.name !== undefined) row.name = member.name;
 
   if (member.regNo !== undefined) row.reg_no = member.regNo;
   if (member.nickname !== undefined) row.nickname = member.nickname;

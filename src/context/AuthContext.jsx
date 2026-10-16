@@ -435,7 +435,11 @@ export function AuthProvider({ children }) {
 
     // Security: Only allow safe presentation fields to be updated by a member
     const safeUpdates = {};
+    if (updatedFields.name !== undefined && String(updatedFields.name || '').trim()) {
+      safeUpdates.name = String(updatedFields.name).trim().slice(0, 100);
+    }
     if (updatedFields.nickname !== undefined) safeUpdates.nickname = String(updatedFields.nickname || '').slice(0, 60);
+    if (updatedFields.role !== undefined) safeUpdates.role = String(updatedFields.role || '').slice(0, 80);
     if (updatedFields.birthday !== undefined) safeUpdates.birthday = updatedFields.birthday || '';
     if (updatedFields.photo !== undefined) safeUpdates.photo = updatedFields.photo || '';
     if (updatedFields.quote !== undefined) safeUpdates.quote = String(updatedFields.quote || '').slice(0, 300);
@@ -486,8 +490,9 @@ export function AuthProvider({ children }) {
     });
 
     const activeSession = getValidSession();
-    if (activeSession && safeUpdates.personalEmail) {
-      activeSession.email = safeUpdates.personalEmail;
+    if (activeSession) {
+      if (safeUpdates.personalEmail) activeSession.email = safeUpdates.personalEmail;
+      if (safeUpdates.name) activeSession.name = safeUpdates.name;
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
     }
 
