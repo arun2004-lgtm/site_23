@@ -23,6 +23,7 @@ function normalizeRegNo(str) {
 
 const DEFAULT_GOOGLE_CLIENT_ID = '298305600625-57kc5rilqcgrae3uinsqh1esngh84add.apps.googleusercontent.com';
 const SESSION_STORAGE_KEY = 'site23_auth_session_v2';
+const BATCHMATES_STORAGE_KEY = 'site23_pera_batchmates_v7';
 
 function generateSessionToken() {
   return (
@@ -73,7 +74,7 @@ export function AuthProvider({ children }) {
   // Load batchmates roster from localStorage or fallback to initial data
   const [batchmates, setBatchmates] = useState(() => {
     try {
-      const saved = localStorage.getItem('site23_pera_batchmates_v6');
+      const saved = localStorage.getItem(BATCHMATES_STORAGE_KEY);
       return saved ? JSON.parse(saved) : initialBatchmates;
     } catch {
       return initialBatchmates;
@@ -89,7 +90,7 @@ export function AuthProvider({ children }) {
       // Validate session against current batchmates database
       const roster = (() => {
         try {
-          const saved = localStorage.getItem('site23_pera_batchmates_v6');
+          const saved = localStorage.getItem(BATCHMATES_STORAGE_KEY);
           return saved ? JSON.parse(saved) : initialBatchmates;
         } catch {
           return initialBatchmates;
@@ -139,7 +140,7 @@ export function AuthProvider({ children }) {
   // Persist batchmates whenever they change locally
   useEffect(() => {
     try {
-      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(batchmates));
+      localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(batchmates));
     } catch (e) {
       console.error(e);
     }
@@ -154,7 +155,7 @@ export function AuthProvider({ children }) {
       if (!isMounted || !cloudRoster || cloudRoster.length === 0) return;
 
       setBatchmates(cloudRoster);
-      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(cloudRoster));
+      localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(cloudRoster));
 
       // Keep currentUser in sync with cloud data
       setCurrentUser((prev) => {
@@ -175,7 +176,7 @@ export function AuthProvider({ children }) {
         setBatchmates((prev) => {
           if (prev.some(m => m.id === newMember.id)) return prev;
           const updated = [newMember, ...prev];
-          localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+          localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
           return updated;
         });
       },
@@ -183,7 +184,7 @@ export function AuthProvider({ children }) {
         if (!isMounted || !updatedMember) return;
         setBatchmates((prev) => {
           const updated = prev.map(m => m.id === updatedMember.id ? { ...m, ...updatedMember } : m);
-          localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+          localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
           return updated;
         });
         setCurrentUser((prev) => {
@@ -199,7 +200,7 @@ export function AuthProvider({ children }) {
         if (!isMounted || !deletedId) return;
         setBatchmates((prev) => {
           const updated = prev.filter(m => m.id !== deletedId);
-          localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+          localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
           return updated;
         });
       }
@@ -315,7 +316,7 @@ export function AuthProvider({ children }) {
         member = updatedMember;
         setBatchmates(prev => {
           const updated = prev.map(m => m.id === updatedMember.id ? updatedMember : m);
-          localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+          localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
           return updated;
         });
         updateMemberInCloud(member.id, { personalEmail: member.personalEmail }).catch(err => {
@@ -351,7 +352,7 @@ export function AuthProvider({ children }) {
 
         setBatchmates(prev => {
           const updated = [member, ...prev];
-          localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+          localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
           return updated;
         });
         insertMemberInCloud(member).catch(err => {
@@ -393,7 +394,7 @@ export function AuthProvider({ children }) {
     setCurrentUser(updatedUser);
     setBatchmates(prev => {
       const updated = prev.map(m => m.id === updatedUser.id ? updatedUser : m);
-      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+      localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
 
@@ -485,7 +486,7 @@ export function AuthProvider({ children }) {
     setCurrentUser(updatedUser);
     setBatchmates(prev => {
       const updated = prev.map(m => m.id === currentUser.id ? updatedUser : m);
-      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+      localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
 
@@ -527,7 +528,7 @@ export function AuthProvider({ children }) {
     }
     setBatchmates(prev => {
       const updated = prev.map(m => m.id === memberId ? { ...m, ...cleanFields } : m);
-      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+      localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
     if (currentUser?.id === memberId) {
@@ -551,7 +552,7 @@ export function AuthProvider({ children }) {
     };
     setBatchmates(prev => {
       const updated = [cleanMember, ...prev];
-      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+      localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
     // Sync insert to Supabase cloud
@@ -567,7 +568,7 @@ export function AuthProvider({ children }) {
     }
     setBatchmates(prev => {
       const updated = prev.filter(m => m.id !== memberId);
-      localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(updated));
+      localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
       return updated;
     });
     // Sync delete to Supabase cloud
@@ -582,7 +583,7 @@ export function AuthProvider({ children }) {
       throw new Error('Unauthorized: Admin privileges required.');
     }
     setBatchmates(initialBatchmates);
-    localStorage.setItem('site23_pera_batchmates_v6', JSON.stringify(initialBatchmates));
+    localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(initialBatchmates));
   };
 
   return (

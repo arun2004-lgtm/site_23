@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { formatBirthday } from '../utils/birthdayUtils';
 import { getDefaultAvatar } from '../data/batchData';
+import { formatGoogleDriveImageUrl } from '../utils/imageUtils';
 
 export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit = null }) {
   const { 
@@ -33,7 +34,10 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
     department: '',
     quote: '',
     universityEmail: '',
-    personalEmail: ''
+    personalEmail: '',
+    instagram: '',
+    linkedin: '',
+    phone: ''
   });
 
   // New member add state
@@ -74,7 +78,10 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
         department: initialMemberToEdit.department || '',
         quote: initialMemberToEdit.quote || '',
         universityEmail: initialMemberToEdit.universityEmail || '',
-        personalEmail: initialMemberToEdit.personalEmail || ''
+        personalEmail: initialMemberToEdit.personalEmail || '',
+        instagram: initialMemberToEdit.social?.instagram || '',
+        linkedin: initialMemberToEdit.social?.linkedin || '',
+        phone: initialMemberToEdit.social?.phone || ''
       });
     }
   }
@@ -111,7 +118,10 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
       department: member.department || '',
       quote: member.quote || '',
       universityEmail: member.universityEmail || '',
-      personalEmail: member.personalEmail || ''
+      personalEmail: member.personalEmail || '',
+      instagram: member.social?.instagram || '',
+      linkedin: member.social?.linkedin || '',
+      phone: member.social?.phone || ''
     });
   };
 
@@ -120,15 +130,20 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
     if (!editingMember) return;
 
     updateMemberAsAdmin(editingMember.id, {
-      name: editFormData.name,
-      nickname: editFormData.nickname,
+      name: editFormData.name.trim(),
+      nickname: editFormData.nickname.trim(),
       birthday: editFormData.birthday,
-      photo: editFormData.photo,
-      role: editFormData.role,
-      department: editFormData.department,
-      quote: editFormData.quote,
+      photo: formatGoogleDriveImageUrl(editFormData.photo.trim()),
+      role: editFormData.role.trim(),
+      department: editFormData.department.trim(),
+      quote: editFormData.quote.trim(),
       universityEmail: editFormData.universityEmail.trim().toLowerCase(),
       personalEmail: editFormData.personalEmail.trim().toLowerCase(),
+      social: {
+        instagram: editFormData.instagram.trim(),
+        linkedin: editFormData.linkedin.trim(),
+        phone: editFormData.phone.trim()
+      },
       detailsPending: false
     });
 
@@ -460,6 +475,16 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
                       className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white"
                     />
                   </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Department / Faculty</label>
+                    <input
+                      type="text"
+                      value={editFormData.department}
+                      onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
+                      placeholder="e.g. Engineering Faculty"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -493,6 +518,39 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
                     onChange={(e) => setEditFormData({ ...editFormData, photo: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Instagram (@username)</label>
+                    <input
+                      type="text"
+                      value={editFormData.instagram}
+                      onChange={(e) => setEditFormData({ ...editFormData, instagram: e.target.value })}
+                      placeholder="e.g. username"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">LinkedIn Username</label>
+                    <input
+                      type="text"
+                      value={editFormData.linkedin}
+                      onChange={(e) => setEditFormData({ ...editFormData, linkedin: e.target.value })}
+                      placeholder="e.g. profile"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Phone Number</label>
+                    <input
+                      type="text"
+                      value={editFormData.phone}
+                      onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                      placeholder="e.g. +94 77 123 4567"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
+                    />
+                  </div>
                 </div>
 
                 <div>
