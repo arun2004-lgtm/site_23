@@ -15,7 +15,65 @@ export function isHeicFile(file) {
 }
 
 /**
- * Reads any image file (including iPhone HEIC) and returns a browser-compatible JPEG Data URL
+ * Resizes and compresses any image file (or Blob) using an offscreen canvas.
+ * Produces an optimized, lightweight JPEG Data URL (typically ~25-45KB)
+ * that safely fits within localStorage quotas and updates Supabase instantly!
+ */
+export async function compressAndResizeImage(fileOrBlob, maxDimension = 512, quality = 0.82) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return readAsDataURL(fileOrBlob);
+  }
+
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(fileOrBlob);
+
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let width = img.naturalWidth || img.width;
+      let height = img.naturalHeight || img.height;
+
+      // Scale down proportionally if larger than maxDimension
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, width);
+      canvas.height = Math.max(1, height);
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        return readAsDataURL(fileOrBlob).then(resolve).catch(reject);
+      }
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, width, height);
+
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+      resolve(compressedDataUrl);
+    };
+
+    img.onerror = (err) => {
+      URL.revokeObjectURL(objectUrl);
+      // Fallback to raw Data URL if image drawing fails
+      readAsDataURL(fileOrBlob).then(resolve).catch(() => reject(err));
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+/**
+ * Reads any image file (including iPhone HEIC) and returns a lightweight,
+ * optimized JPEG Data URL ready for instant database and localStorage storage
  */
 export async function processImageFile(file, onProgress) {
   if (!file) return null;
@@ -33,21 +91,20 @@ export async function processImageFile(file, onProgress) {
       });
 
       const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
-
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(finalBlob);
-      });
+      if (onProgress) onProgress('Optimizing profile image size...');
+      return await compressAndResizeImage(finalBlob, 512, 0.82);
     } catch (err) {
       console.warn('HEIC conversion fallback error:', err);
-      // Fallback to standard read if conversion fails
       return readAsDataURL(file);
     }
   }
 
-  return readAsDataURL(file);
+  // Optimize and compress standard files (JPEG, PNG, WebP)
+  try {
+    return await compressAndResizeImage(file, 512, 0.82);
+  } catch {
+    return readAsDataURL(file);
+  }
 }
 
 /**

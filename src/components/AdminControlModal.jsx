@@ -125,30 +125,34 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
     });
   };
 
-  const handleSaveMemberEdit = (e) => {
+  const handleSaveMemberEdit = async (e) => {
     e.preventDefault();
     if (!editingMember) return;
 
-    updateMemberAsAdmin(editingMember.id, {
-      name: editFormData.name.trim(),
-      nickname: editFormData.nickname.trim(),
-      birthday: editFormData.birthday,
-      photo: formatGoogleDriveImageUrl(editFormData.photo.trim()),
-      role: editFormData.role.trim(),
-      department: editFormData.department.trim(),
-      quote: editFormData.quote.trim(),
-      universityEmail: editFormData.universityEmail.trim().toLowerCase(),
-      personalEmail: editFormData.personalEmail.trim().toLowerCase(),
-      social: {
-        instagram: editFormData.instagram.trim(),
-        linkedin: editFormData.linkedin.trim(),
-        phone: editFormData.phone.trim()
-      },
-      detailsPending: false
-    });
+    try {
+      await updateMemberAsAdmin(editingMember.id, {
+        name: editFormData.name.trim(),
+        nickname: editFormData.nickname.trim(),
+        birthday: editFormData.birthday,
+        photo: formatGoogleDriveImageUrl(editFormData.photo.trim()),
+        role: editFormData.role.trim(),
+        department: editFormData.department.trim(),
+        quote: editFormData.quote.trim(),
+        universityEmail: editFormData.universityEmail.trim().toLowerCase(),
+        personalEmail: editFormData.personalEmail.trim().toLowerCase(),
+        social: {
+          instagram: editFormData.instagram.trim(),
+          linkedin: editFormData.linkedin.trim(),
+          phone: editFormData.phone.trim()
+        },
+        detailsPending: false
+      });
 
-    setEditingMember(null);
-    showNotice(`Successfully updated ${editFormData.name} in batch database!`);
+      setEditingMember(null);
+      showNotice(`Successfully updated ${editFormData.name} in batch database!`);
+    } catch (err) {
+      alert(err.message || 'Failed to update member in batch database.');
+    }
   };
 
   const handleAddNewMember = (e) => {

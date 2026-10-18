@@ -28,6 +28,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
   );
   const [testStatus, setTestStatus] = useState(null); // 'testing' | 'success' | 'error'
   const [testMessage, setTestMessage] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const [formData, setFormData] = useState(() => ({
     name: currentUser?.name || '',
@@ -161,10 +162,11 @@ export default function EditProfileModal({ isOpen, onClose }) {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     if (e) e.preventDefault();
+    setIsSaving(true);
     try {
-      updateProfile({
+      await updateProfile({
         name: formData.name,
         nickname: formData.nickname,
         birthday: formData.birthday,
@@ -189,6 +191,8 @@ export default function EditProfileModal({ isOpen, onClose }) {
       }, 1200);
     } catch (err) {
       alert(err.message || 'Failed to save profile.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -786,10 +790,20 @@ export default function EditProfileModal({ isOpen, onClose }) {
 
               <button
                 type="submit"
-                className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5"
+                disabled={isSaving}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <Check className="w-3.5 h-3.5" />
-                <span>Save Profile</span>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Save Profile</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

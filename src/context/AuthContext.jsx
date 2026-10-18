@@ -431,7 +431,8 @@ export function AuthProvider({ children }) {
   };
 
   // Update own profile (safely persists profile edits with strict privilege validation)
-  const updateProfile = (updatedFields) => {
+  // Update own profile (safely persists profile edits with strict privilege validation)
+  const updateProfile = async (updatedFields) => {
     if (!currentUser) return;
 
     // Security: Only allow safe presentation fields to be updated by a member
@@ -486,7 +487,11 @@ export function AuthProvider({ children }) {
     setCurrentUser(updatedUser);
     setBatchmates(prev => {
       const updated = prev.map(m => m.id === currentUser.id ? updatedUser : m);
-      localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
+      try {
+        localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
+      } catch (storageErr) {
+        console.warn('LocalStorage quota warning:', storageErr);
+      }
       return updated;
     });
 
@@ -494,13 +499,18 @@ export function AuthProvider({ children }) {
     if (activeSession) {
       if (safeUpdates.personalEmail) activeSession.email = safeUpdates.personalEmail;
       if (safeUpdates.name) activeSession.name = safeUpdates.name;
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
+      try {
+        localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(activeSession));
+      } catch (storageErr) {
+        console.warn('Session storage warning:', storageErr);
+      }
     }
 
-    // Persist changes to Supabase cloud database so all students see updates live
-    updateMemberInCloud(currentUser.id, safeUpdates).catch(err => {
-      console.error('Failed to sync profile update to Supabase cloud:', err);
-    });
+    // Persist changes to Supabase cloud database permanently
+    const cloudResult = await updateMemberInCloud(currentUser.id, safeUpdates);
+    if (!cloudResult) {
+      console.warn('⚠️ Cloud update could not be confirmed immediately. Local state preserved.');
+    }
 
     return updatedUser;
   };
@@ -514,8 +524,8 @@ export function AuthProvider({ children }) {
     )
   ));
 
-  // Admin capability: update any member
-  const updateMemberAsAdmin = (memberId, updatedFields) => {
+  // Admin capability: update any member permanently
+  const updateMemberAsAdmin = async (memberId, updatedFields) => {
     if (!isAdmin) {
       throw new Error('Unauthorized: Admin privileges required.');
     }
@@ -528,16 +538,18 @@ export function AuthProvider({ children }) {
     }
     setBatchmates(prev => {
       const updated = prev.map(m => m.id === memberId ? { ...m, ...cleanFields } : m);
-      localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
+      try {
+        localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
+      } catch (storageErr) {
+        console.warn('LocalStorage quota warning:', storageErr);
+      }
       return updated;
     });
     if (currentUser?.id === memberId) {
       setCurrentUser(prev => ({ ...prev, ...cleanFields }));
     }
-    // Sync update to Supabase cloud
-    updateMemberInCloud(memberId, cleanFields).catch(err => {
-      console.error('Failed to sync admin update to Supabase cloud:', err);
-    });
+    // Sync update to Supabase cloud permanently
+    return await updateMemberInCloud(memberId, cleanFields);
   };
 
   // Admin capability: add a new member

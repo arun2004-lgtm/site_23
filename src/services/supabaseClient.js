@@ -77,7 +77,7 @@ export async function fetchBatchmatesFromCloud() {
       return null;
     }
 
-    // Auto-seed cloud database if table is newly created / empty
+    // Auto-seed cloud database ONLY if table is newly created / empty (0 rows)
     if (!data || data.length === 0) {
       console.log('⚡ Initializing cloud database with official E/23 batch roster...');
       const seedRows = initialBatchmates.map(toDbRow);
@@ -91,6 +91,21 @@ export async function fetchBatchmatesFromCloud() {
         return initialBatchmates;
       }
       return (seededData || []).map(fromDbRow);
+    }
+
+    // SAFE NON-DESTRUCTIVE SYNC:
+    // If any member from initialBatchmates is completely missing from Supabase (e.g. newly added student),
+    // insert ONLY the missing member into Supabase without touching existing members!
+    const existingIds = new Set(data.map(r => r.id));
+    const missingMembers = initialBatchmates.filter(m => !existingIds.has(m.id));
+    if (missingMembers.length > 0) {
+      console.log(`⚡ Safely inserting ${missingMembers.length} newly discovered batchmate(s) to cloud without modifying existing profiles...`);
+      const missingRows = missingMembers.map(toDbRow);
+      await supabase.from('batchmates').insert(missingRows);
+      const { data: refreshed } = await supabase.from('batchmates').select('*').order('id', { ascending: true });
+      if (refreshed && refreshed.length > 0) {
+        return refreshed.map(fromDbRow);
+      }
     }
 
     return data.map(fromDbRow);
@@ -116,6 +131,21 @@ export async function updateMemberInCloud(id, safeUpdates) {
       console.error('Supabase update failed:', error.message);
       return false;
     }
+
+    // Fallback: if row didn't exist in Supabase, upsert it so it is permanently created
+    if (!data || data.length === 0) {
+      console.warn(`Row for id ${id} not found for update, attempting upsert fallback...`);
+      const { data: upsertData, error: upsertError } = await supabase
+        .from('batchmates')
+        .upsert(row)
+        .select();
+      if (upsertError) {
+        console.error('Supabase upsert fallback failed:', upsertError.message);
+        return false;
+      }
+      return upsertData && upsertData.length > 0 ? fromDbRow(upsertData[0]) : true;
+    }
+
     return data && data.length > 0 ? fromDbRow(data[0]) : true;
   } catch (err) {
     console.error('Network error updating member in cloud:', err);
