@@ -527,16 +527,17 @@ export default function EditProfileModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {driveUploadError && !isUploadingToDrive && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>Notice: {driveUploadError} (image saved locally as fallback)</span>
+              {/* Status reassurance: photo is ready to sync to Supabase */}
+              {!driveUploadSuccess && !isUploadingToDrive && formData.photo && !formData.photo.includes('api.dicebear.com') && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-[11px] text-emerald-300 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>Photo framed & ready! Click <strong>Save Profile</strong> below to sync permanently across all devices ✨</span>
                 </div>
               )}
 
               {heicConverted && !isConvertingPhoto && !driveUploadSuccess && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-[11px] text-indigo-300 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
                   <span>iPhone HEIC photo auto-converted to high-res JPEG ✨</span>
                 </div>
               )}
@@ -572,9 +573,13 @@ export default function EditProfileModal({ isOpen, onClose }) {
                     <span>Google Drive Cloud Uploader Settings</span>
                   </span>
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${
-                    gasUrlInput ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-slate-400 border-slate-700'
+                    testStatus === 'success' 
+                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
+                      : gasUrlInput 
+                      ? 'bg-amber-500/10 text-amber-300 border-amber-500/30' 
+                      : 'bg-slate-800 text-slate-400 border-slate-700'
                   }`}>
-                    {gasUrlInput ? 'Connected 🟢' : 'Setup Option 3 ⚪'}
+                    {testStatus === 'success' ? 'Verified 🟢' : gasUrlInput ? 'Optional Backup 🟡' : 'Not Configured ⚪'}
                   </span>
                 </button>
 
@@ -608,7 +613,28 @@ export default function EditProfileModal({ isOpen, onClose }) {
                       >
                         {testStatus === 'testing' ? 'Testing...' : 'Test & Save'}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          localStorage.removeItem('site23_gas_upload_url');
+                          setGasUrlInput(import.meta.env.VITE_GOOGLE_DRIVE_UPLOAD_URL || '');
+                          setTestStatus(null);
+                          setTestMessage('Reset to default project endpoint.');
+                          setDriveUploadError('');
+                        }}
+                        className="shrink-0 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold transition-colors"
+                        title="Reset to default Google Apps Script endpoint"
+                      >
+                        Reset
+                      </button>
                     </div>
+
+                    {driveUploadError && (
+                      <div className="text-[11px] p-2 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                        <span>Last sync attempt: {driveUploadError}. (Photos are safely stored in Supabase).</span>
+                      </div>
+                    )}
 
                     {testMessage && (
                       <div className={`text-[11px] p-2 rounded-lg flex items-center gap-1.5 ${

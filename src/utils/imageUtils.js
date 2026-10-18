@@ -154,13 +154,19 @@ export function formatGoogleDriveImageUrl(url) {
  */
 export async function uploadImageToGoogleDrive(dataUrl, filename = 'profile.jpg', customEndpoint = null, folderId = '1_VBM374H-BypVbpChe1H6JqdC9XkoAhp') {
   const endpoint = customEndpoint || import.meta.env.VITE_GOOGLE_DRIVE_UPLOAD_URL || localStorage.getItem('site23_gas_upload_url');
-  if (!endpoint) return null;
+  if (!endpoint || typeof endpoint !== 'string' || !endpoint.startsWith('http')) return null;
+
+  // Clean folder ID in case a full URL was passed or configured
+  const cleanFolderId = (folderId || '1_VBM374H-BypVbpChe1H6JqdC9XkoAhp')
+    .replace(/.*folders\//, '')
+    .replace(/\?.*/, '')
+    .trim();
 
   const payload = {
     base64: dataUrl,
     filename: filename,
     type: 'image/jpeg',
-    folderId: folderId
+    folderId: cleanFolderId
   };
 
   // We use Content-Type: text/plain to avoid CORS preflight OPTIONS request
