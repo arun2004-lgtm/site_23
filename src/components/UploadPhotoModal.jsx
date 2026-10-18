@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, UploadCloud, Image, Check, Sparkles, ExternalLink, Loader2 } from 'lucide-react';
+import { X, UploadCloud, Image, Check, Sparkles, ExternalLink, Loader2, Crop } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { photoAlbums } from '../data/batchData';
 import { processImageFile, isHeicFile } from '../utils/imageUtils';
+import ImageCropModal from './ImageCropModal';
 
 export default function UploadPhotoModal({ isOpen, onClose, onPhotoUploaded }) {
   const { currentUser } = useAuth();
@@ -13,6 +14,7 @@ export default function UploadPhotoModal({ isOpen, onClose, onPhotoUploaded }) {
   const [isConvertingHeic, setIsConvertingHeic] = useState(false);
   const [wasHeic, setWasHeic] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [isCropOpen, setIsCropOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -155,6 +157,21 @@ export default function UploadPhotoModal({ isOpen, onClose, onPhotoUploaded }) {
                       <span>iPhone HEIC converted to JPEG</span>
                     </div>
                   )}
+                  {previewUrl && (
+                    <div className="flex items-center justify-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsCropOpen(true);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 text-xs font-semibold transition-colors shadow-sm"
+                      >
+                        <Crop className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Frame & Zoom Photo</span>
+                      </button>
+                    </div>
+                  )}
                   <p className="text-xs text-amber-400 font-medium">Click or drag another image to replace</p>
                 </div>
               ) : (
@@ -271,6 +288,19 @@ export default function UploadPhotoModal({ isOpen, onClose, onPhotoUploaded }) {
 
           </form>
         )}
+
+        {/* Framing & Crop Intermediate Modal */}
+        <ImageCropModal
+          isOpen={isCropOpen}
+          imageSrc={previewUrl}
+          title="Frame & Position Album Photo"
+          initialShape="square"
+          onClose={() => setIsCropOpen(false)}
+          onCropComplete={(croppedUrl) => {
+            setPreviewUrl(croppedUrl);
+            setIsCropOpen(false);
+          }}
+        />
 
       </div>
     </div>

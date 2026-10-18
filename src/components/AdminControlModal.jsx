@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { 
   X, Users, CloudUpload, Settings, 
   Search, Edit3, Trash2, UserPlus, CheckCircle2, 
-  AlertCircle, Crown 
+  AlertCircle, Crown, Upload, Crop 
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { formatBirthday } from '../utils/birthdayUtils';
 import { getDefaultAvatar } from '../data/batchData';
-import { formatGoogleDriveImageUrl } from '../utils/imageUtils';
+import { formatGoogleDriveImageUrl, processImageFile } from '../utils/imageUtils';
+import ImageCropModal from './ImageCropModal';
 
 export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit = null }) {
   const { 
@@ -62,6 +63,25 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
   const [isTesting, setIsTesting] = useState(false);
 
   const [actionSuccess, setActionSuccess] = useState('');
+  const [isCropOpen, setIsCropOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState(null);
+
+  const handleAdminPhotoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await processImageFile(file, null, 1200);
+      if (dataUrl) {
+        setCropImageSrc(dataUrl);
+        setIsCropOpen(true);
+      }
+    } catch (err) {
+      console.error('Failed to process image:', err);
+    } finally {
+      e.target.value = '';
+    }
+  };
+
   const [prevInitialMember, setPrevInitialMember] = useState(initialMemberToEdit);
 
   if (initialMemberToEdit !== prevInitialMember) {
@@ -515,12 +535,41 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Photo URL / Google Drive link</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-300 font-semibold">Photo URL / Google Drive link</label>
+                    <div className="flex items-center gap-1.5">
+                      <label className="cursor-pointer inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 text-[11px] font-semibold transition-colors">
+                        <Upload className="w-3 h-3 text-amber-400" />
+                        <span>Upload & Frame</span>
+                        <input
+                          type="file"
+                          accept="image/*,.heic,.HEIC,.heif,.HEIF"
+                          onChange={handleAdminPhotoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                      {editFormData.photo && !editFormData.photo.includes('api.dicebear.com') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCropImageSrc(editFormData.photo);
+                            setIsCropOpen(true);
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 text-[11px] font-semibold transition-colors"
+                          title="Re-frame photo"
+                        >
+                          <Crop className="w-3 h-3 text-amber-400" />
+                          <span>Frame</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
                   <input
                     type="text"
                     value={editFormData.photo}
                     onChange={(e) => setEditFormData({ ...editFormData, photo: e.target.value })}
                     className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono text-xs"
+                    placeholder="https://... or click Upload & Frame"
                   />
                 </div>
 
@@ -791,6 +840,23 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
             Done
           </button>
         </div>
+
+        {/* Member Photo Framing & Zoom Modal */}
+        <ImageCropModal
+          isOpen={isCropOpen}
+          imageSrc={cropImageSrc}
+          title="Frame Member Photo"
+          initialShape="circle"
+          onClose={() => {
+            setIsCropOpen(false);
+            setCropImageSrc(null);
+          }}
+          onCropComplete={(croppedUrl) => {
+            setEditFormData(prev => ({ ...prev, photo: croppedUrl }));
+            setIsCropOpen(false);
+            setCropImageSrc(null);
+          }}
+        />
 
       </div>
     </div>

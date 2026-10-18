@@ -3,11 +3,12 @@ import {
   X, User, Calendar, Camera, Briefcase, Quote, Check, Sparkles, 
   ShieldCheck, Link2, Upload, Loader2, RotateCcw, 
   CloudUpload, Settings2, CheckCircle2, AlertCircle, 
-  ChevronRight, ChevronLeft, Globe, AtSign, Phone
+  ChevronRight, ChevronLeft, Globe, AtSign, Phone, Crop
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { formatGoogleDriveImageUrl, processImageFile, isHeicFile, uploadImageToGoogleDrive } from '../utils/imageUtils';
 import { getDefaultAvatar } from '../data/batchData';
+import ImageCropModal from './ImageCropModal';
 
 export default function EditProfileModal({ isOpen, onClose }) {
   const { currentUser, updateProfile, linkGoogleAccountViaOAuth } = useAuth();
@@ -29,6 +30,8 @@ export default function EditProfileModal({ isOpen, onClose }) {
   const [testStatus, setTestStatus] = useState(null); // 'testing' | 'success' | 'error'
   const [testMessage, setTestMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [rawImageForCrop, setRawImageForCrop] = useState(null);
 
   const [formData, setFormData] = useState(() => ({
     name: currentUser?.name || '',
@@ -104,36 +107,50 @@ export default function EditProfileModal({ isOpen, onClose }) {
     }
 
     try {
-      const dataUrl = await processImageFile(file);
-      // Immediately set local preview
-      setFormData(prev => ({ ...prev, photo: dataUrl }));
-
-      // Check if Google Apps Script Web App upload endpoint is configured
-      const activeGasUrl = (gasUrlInput || localStorage.getItem('site23_gas_upload_url') || import.meta.env.VITE_GOOGLE_DRIVE_UPLOAD_URL || '').trim();
-
-      if (activeGasUrl) {
-        setIsUploadingToDrive(true);
-        const safeName = (formData.name || currentUser.name || 'member').replace(/[^a-zA-Z0-9]/g, '_');
-        const safeReg = (currentUser.regNo || 'e23').replace(/[^a-zA-Z0-9]/g, '_');
-        const filename = `${safeReg}_${safeName}_${Date.now()}.jpg`;
-
-        try {
-          const directDriveUrl = await uploadImageToGoogleDrive(dataUrl, filename, activeGasUrl);
-          if (directDriveUrl) {
-            setFormData(prev => ({ ...prev, photo: directDriveUrl }));
-            setDriveUploadSuccess(true);
-          }
-        } catch (uploadErr) {
-          console.warn('Google Drive direct upload failed, keeping local image:', uploadErr);
-          setDriveUploadError(uploadErr.message || 'Drive upload error');
-        } finally {
-          setIsUploadingToDrive(false);
-        }
+      // Process image (HEIC conversion and resize to comfortable working dimensions)
+      const dataUrl = await processImageFile(file, null, 1200);
+      if (dataUrl) {
+        // Open the framing intermediate tool so user can zoom and move photo
+        setRawImageForCrop(dataUrl);
+        setIsCropModalOpen(true);
       }
     } catch (err) {
       console.error('Error processing profile photo:', err);
     } finally {
       setIsConvertingPhoto(false);
+      // Reset input value so selecting the same file triggers onChange
+      e.target.value = '';
+    }
+  };
+
+  const handleCropComplete = async (croppedDataUrl) => {
+    setIsCropModalOpen(false);
+    setRawImageForCrop(null);
+
+    // Apply the perfectly framed and compressed portrait
+    setFormData(prev => ({ ...prev, photo: croppedDataUrl }));
+
+    // Check if Google Apps Script Web App upload endpoint is configured
+    const activeGasUrl = (gasUrlInput || localStorage.getItem('site23_gas_upload_url') || import.meta.env.VITE_GOOGLE_DRIVE_UPLOAD_URL || '').trim();
+
+    if (activeGasUrl) {
+      setIsUploadingToDrive(true);
+      const safeName = (formData.name || currentUser?.name || 'member').replace(/[^a-zA-Z0-9]/g, '_');
+      const safeReg = (currentUser?.regNo || 'e23').replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `${safeReg}_${safeName}_${Date.now()}.jpg`;
+
+      try {
+        const directDriveUrl = await uploadImageToGoogleDrive(croppedDataUrl, filename, activeGasUrl);
+        if (directDriveUrl) {
+          setFormData(prev => ({ ...prev, photo: directDriveUrl }));
+          setDriveUploadSuccess(true);
+        }
+      } catch (uploadErr) {
+        console.warn('Google Drive direct upload failed, keeping local image:', uploadErr);
+        setDriveUploadError(uploadErr.message || 'Drive upload error');
+      } finally {
+        setIsUploadingToDrive(false);
+      }
     }
   };
 
@@ -458,10 +475,26 @@ export default function EditProfileModal({ isOpen, onClose }) {
                       />
                     </label>
 
+                    {/* Frame & Zoom Button for custom photo */}
+                    {formData.photo && !formData.photo.includes('api.dicebear.com') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRawImageForCrop(formData.photo);
+                          setIsCropModalOpen(true);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 hover:text-amber-200 text-xs font-semibold border border-amber-500/40 transition-colors shadow-sm"
+                        title="Re-frame, zoom or reposition current photo"
+                      >
+                        <Crop className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Frame & Zoom</span>
+                      </button>
+                    )}
+
                     {/* Reset Button */}
                     <button
                       type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, photo: getDefaultAvatar(prev.name || currentUser.name) }))}
+                      onClick={() => setFormData(prev => ({ ...prev, photo: getDefaultAvatar(prev.name || currentUser?.name) }))}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition-colors"
                       title="Reset to clean vector initials avatar"
                     >
@@ -808,6 +841,19 @@ export default function EditProfileModal({ isOpen, onClose }) {
             </div>
           </div>
         </form>
+
+        {/* Intermediate Photo Framing & Zoom Modal */}
+        <ImageCropModal
+          isOpen={isCropModalOpen}
+          imageSrc={rawImageForCrop}
+          onClose={() => {
+            setIsCropModalOpen(false);
+            setRawImageForCrop(null);
+          }}
+          onCropComplete={handleCropComplete}
+          title="Frame & Position Profile Avatar"
+          initialShape="circle"
+        />
 
       </div>
     </div>

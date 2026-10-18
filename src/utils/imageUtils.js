@@ -75,7 +75,7 @@ export async function compressAndResizeImage(fileOrBlob, maxDimension = 512, qua
  * Reads any image file (including iPhone HEIC) and returns a lightweight,
  * optimized JPEG Data URL ready for instant database and localStorage storage
  */
-export async function processImageFile(file, onProgress) {
+export async function processImageFile(file, onProgress, maxDimension = 1200) {
   if (!file) return null;
 
   if (isHeicFile(file)) {
@@ -92,7 +92,7 @@ export async function processImageFile(file, onProgress) {
 
       const finalBlob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
       if (onProgress) onProgress('Optimizing profile image size...');
-      return await compressAndResizeImage(finalBlob, 512, 0.82);
+      return await compressAndResizeImage(finalBlob, maxDimension, 0.85);
     } catch (err) {
       console.warn('HEIC conversion fallback error:', err);
       return readAsDataURL(file);
@@ -101,7 +101,7 @@ export async function processImageFile(file, onProgress) {
 
   // Optimize and compress standard files (JPEG, PNG, WebP)
   try {
-    return await compressAndResizeImage(file, 512, 0.82);
+    return await compressAndResizeImage(file, maxDimension, 0.85);
   } catch {
     return readAsDataURL(file);
   }
@@ -110,7 +110,7 @@ export async function processImageFile(file, onProgress) {
 /**
  * Helper to read standard files as DataURL
  */
-function readAsDataURL(file) {
+export function readAsDataURL(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => resolve(reader.result);
