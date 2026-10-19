@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "bot:today": "node scripts/whatsapp-birthday-bot/run-birthday-bot.cjs --today",
     "bot:test": "node scripts/whatsapp-birthday-bot/run-birthday-bot.cjs --test",
-    "bot:daemon": "node scripts/whatsapp-birthday-bot/run-birthday-bot.cjs --daemon"
+    "bot:daemon": "node scripts/whatsapp-birthday-bot/run-birthday-bot.cjs --daemon",
+    "bot:status": "node scripts/whatsapp-birthday-bot/test-green-api.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",

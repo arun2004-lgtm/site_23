@@ -10,7 +10,7 @@
     "description": "Target WhatsApp Group JID (e.g. 120363xxxxxxxxxxxx@g.us)"
   },
 
-  "provider": "console",
+  "provider": "green-api",
 
   "greenApi": {
     "apiUrl": "https://api.green-api.com",
