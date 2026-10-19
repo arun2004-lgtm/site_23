@@ -1,0 +1,27 @@
+{
+  "description": "E/23 Official WhatsApp Birthday Automation Bot Configuration",
+  "timezone": "Asia/Colombo",
+  "triggerTime": "00:00",
+  "sendPoster": true,
+  "siteUrl": "https://site-23.vercel.app",
+
+  "targetGroup": {
+    "groupId": "120363XXXXXXXXXXXX@g.us",
+    "description": "Target WhatsApp Group JID (e.g. 120363xxxxxxxxxxxx@g.us)"
+  },
+
+  "provider": "console",
+
+  "greenApi": {
+    "apiUrl": "https://api.green-api.com",
+    "idInstance": "",
+    "apiTokenInstance": ""
+  },
+
+  "webhook": {
+    "url": "",
+    "headers": {}
+  },
+
+  "messageTemplate": "🎉🎂 *HAPPY BIRTHDAY {name}!* 🎂🎉\n━━━━━━━━━━━━━━━━━━━━━\n🌟 *Batchmate:* {fullName} ({nickname})\n🎓 *E-Number:* {regNo}\n🎈 *Milestone:* Turning {age} Today!\n🏛️ *Faculty:* {department}\n\n✨ _{quote}_\n\n━━━━━━━━━━━━━━━━━━━━━\n💌 *Wishing you a phenomenal year ahead filled with happiness, good health, and glorious achievements in your engineering journey!*\n\n🎓 *With lots of love & best wishes,*\n*The E/23 Family* ❤️\n🌐 *Portal:* {siteUrl}"
+}
