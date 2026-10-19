@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { 
   X, Users, CloudUpload, Settings, 
   Search, Edit3, Trash2, UserPlus, CheckCircle2, 
-  AlertCircle, Crown, Upload, Crop 
+  AlertCircle, Crown, Upload, Crop,
+  UploadCloud, Lock, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { formatBirthday } from '../utils/birthdayUtils';
@@ -16,14 +17,20 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
     isAdmin, 
     batchmates, 
     updateMemberAsAdmin, 
+    setMemberUploadPermission,
+    batchSetUploadPermissions,
     addNewMemberAsAdmin, 
     deleteMemberAsAdmin,
     resetBatchRosterToDefaults
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('members'); // 'members' | 'cloud' | 'system'
+  const [activeTab, setActiveTab] = useState('members'); // 'members' | 'permissions' | 'cloud' | 'system'
   const [searchQuery, setSearchQuery] = useState('');
   
+  // Permissions tab filter & search
+  const [permissionFilter, setPermissionFilter] = useState('all'); // 'all' | 'allowed' | 'restricted'
+  const [permissionSearch, setPermissionSearch] = useState('');
+
   // Member edit state
   const [editingMember, setEditingMember] = useState(null);
   const [editFormData, setEditFormData] = useState({
@@ -38,7 +45,8 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
     personalEmail: '',
     instagram: '',
     linkedin: '',
-    phone: ''
+    phone: '',
+    canUploadPhotos: false
   });
 
   // New member add state
@@ -52,7 +60,8 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
     department: 'Faculty of Engineering, University of Peradeniya',
     quote: '',
     universityEmail: '',
-    personalEmail: ''
+    personalEmail: '',
+    canUploadPhotos: false
   });
 
   // Cloud uploader state
@@ -101,7 +110,8 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
         personalEmail: initialMemberToEdit.personalEmail || '',
         instagram: initialMemberToEdit.social?.instagram || '',
         linkedin: initialMemberToEdit.social?.linkedin || '',
-        phone: initialMemberToEdit.social?.phone || ''
+        phone: initialMemberToEdit.social?.phone || '',
+        canUploadPhotos: initialMemberToEdit.id === 'e23020' || !!(initialMemberToEdit.canUploadPhotos || initialMemberToEdit.social?.canUploadPhotos)
       });
     }
   }
@@ -126,6 +136,64 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
   const totalCount = batchmates.length;
   const withBirthdaysCount = batchmates.filter(m => m.birthday && m.birthday.trim() !== '').length;
   const pendingCount = batchmates.filter(m => m.detailsPending).length;
+  const allowedUploadCount = batchmates.filter(
+    m => m.id === 'e23020' || m.canUploadPhotos || m.social?.canUploadPhotos
+  ).length;
+
+  // Filter members for Permissions tab
+  const filteredPermissionMembers = batchmates.filter(m => {
+    const isSuperAdmin = m.id === 'e23020';
+    const isAllowed = isSuperAdmin || !!(m.canUploadPhotos || m.social?.canUploadPhotos);
+    
+    if (permissionFilter === 'allowed' && !isAllowed) return false;
+    if (permissionFilter === 'restricted' && isAllowed) return false;
+
+    const q = permissionSearch.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      m.name?.toLowerCase().includes(q) ||
+      m.regNo?.toLowerCase().includes(q) ||
+      m.nickname?.toLowerCase().includes(q) ||
+      m.role?.toLowerCase().includes(q)
+    );
+  });
+
+  const handleTogglePermission = async (memberId, allowed) => {
+    try {
+      await setMemberUploadPermission(memberId, allowed);
+      const member = batchmates.find(m => m.id === memberId);
+      showNotice(
+        allowed
+          ? `Granted photo upload & Drive access to ${member?.name || memberId}.`
+          : `Restricted photo upload access for ${member?.name || memberId}.`
+      );
+    } catch (err) {
+      console.error('Failed to update permission:', err);
+      showNotice(err.message || 'Error updating permission.');
+    }
+  };
+
+  const handleGrantAllUploadPermissions = async () => {
+    if (!confirm('Are you sure you want to grant photo upload access to ALL batchmates?')) return;
+    try {
+      const allIds = batchmates.map(m => m.id);
+      await batchSetUploadPermissions(allIds, true);
+      showNotice('Granted photo upload & Drive contributor access to all batchmates!');
+    } catch (err) {
+      showNotice('Failed to update permissions: ' + err.message);
+    }
+  };
+
+  const handleRevokeAllUploadPermissions = async () => {
+    if (!confirm('Are you sure you want to revoke photo upload access from all batchmates (except Super Admin)?')) return;
+    try {
+      const allIds = batchmates.map(m => m.id);
+      await batchSetUploadPermissions(allIds, false);
+      showNotice('Revoked upload access for all members except Super Admin (E/23/020).');
+    } catch (err) {
+      showNotice('Failed to revoke permissions: ' + err.message);
+    }
+  };
 
   const startEditMember = (member) => {
     setEditingMember(member);
@@ -141,7 +209,8 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
       personalEmail: member.personalEmail || '',
       instagram: member.social?.instagram || '',
       linkedin: member.social?.linkedin || '',
-      phone: member.social?.phone || ''
+      phone: member.social?.phone || '',
+      canUploadPhotos: member.id === 'e23020' || !!(member.canUploadPhotos || member.social?.canUploadPhotos)
     });
   };
 
@@ -150,6 +219,9 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
     if (!editingMember) return;
 
     try {
+      const isSuperAdmin = editingMember.id === 'e23020';
+      const canUpload = isSuperAdmin ? true : !!editFormData.canUploadPhotos;
+
       await updateMemberAsAdmin(editingMember.id, {
         name: (editFormData.name || '').trim(),
         nickname: (editFormData.nickname || '').trim(),
@@ -160,10 +232,13 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
         quote: (editFormData.quote || '').trim(),
         universityEmail: (editFormData.universityEmail || '').trim().toLowerCase(),
         personalEmail: (editFormData.personalEmail || '').trim().toLowerCase(),
+        canUploadPhotos: canUpload,
         social: {
+          ...(editingMember.social || {}),
           instagram: (editFormData.instagram || '').trim(),
           linkedin: (editFormData.linkedin || '').trim(),
-          phone: (editFormData.phone || '').trim()
+          phone: (editFormData.phone || '').trim(),
+          canUploadPhotos: canUpload
         },
         detailsPending: false
       });
@@ -180,6 +255,7 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
     if (!newMemberData.name || !newMemberData.regNo) return;
 
     const normReg = newMemberData.regNo.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    const canUpload = !!newMemberData.canUploadPhotos;
     const newEntry = {
       id: normReg,
       regNo: newMemberData.regNo.toUpperCase().trim(),
@@ -193,7 +269,10 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
       department: newMemberData.department.trim(),
       quote: newMemberData.quote.trim(),
       detailsPending: !newMemberData.birthday,
-      social: {}
+      canUploadPhotos: canUpload,
+      social: {
+        canUploadPhotos: canUpload
+      }
     };
 
     addNewMemberAsAdmin(newEntry);
@@ -207,7 +286,8 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
       department: 'Faculty of Engineering, University of Peradeniya',
       quote: '',
       universityEmail: '',
-      personalEmail: ''
+      personalEmail: '',
+      canUploadPhotos: false
     });
     showNotice(`Added new batchmate: ${newEntry.name} (${newEntry.regNo}) to batch database!`);
   };
@@ -279,14 +359,18 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
         </div>
 
         {/* Quick Stats Bar */}
-        <div className="grid grid-cols-3 gap-2 px-6 py-3 bg-slate-950 border-b border-slate-800/80 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 px-6 py-3 bg-slate-950 border-b border-slate-800/80 text-xs">
           <div className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
             <span className="text-slate-400">Total Enrolled:</span>
-            <span className="font-bold text-white font-mono">{totalCount} Students</span>
+            <span className="font-bold text-white font-mono">{totalCount}</span>
           </div>
           <div className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
-            <span className="text-slate-400">Birthdays Registered:</span>
-            <span className="font-bold text-amber-400 font-mono">{withBirthdaysCount} / {totalCount}</span>
+            <span className="text-slate-400">Upload Contributors:</span>
+            <span className="font-bold text-emerald-400 font-mono">{allowedUploadCount} / {totalCount}</span>
+          </div>
+          <div className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
+            <span className="text-slate-400">Birthdays Set:</span>
+            <span className="font-bold text-amber-400 font-mono">{withBirthdaysCount}</span>
           </div>
           <div className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between">
             <span className="text-slate-400">Pending Login:</span>
@@ -295,10 +379,10 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
         </div>
 
         {/* Tab Selector */}
-        <div className="px-6 pt-3 bg-slate-950/40 border-b border-slate-800 flex gap-2">
+        <div className="px-6 pt-3 bg-slate-950/40 border-b border-slate-800 flex gap-2 overflow-x-auto scrollbar-none">
           <button
             onClick={() => { setActiveTab('members'); setEditingMember(null); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'members'
                 ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -309,8 +393,20 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
           </button>
 
           <button
+            onClick={() => { setActiveTab('permissions'); setEditingMember(null); }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+              activeTab === 'permissions'
+                ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
+          >
+            <UploadCloud className="w-3.5 h-3.5" />
+            <span>Upload & Drive Access ({allowedUploadCount})</span>
+          </button>
+
+          <button
             onClick={() => { setActiveTab('cloud'); setEditingMember(null); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'cloud'
                 ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -322,7 +418,7 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
 
           <button
             onClick={() => { setActiveTab('system'); setEditingMember(null); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
               activeTab === 'system'
                 ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800'
@@ -395,6 +491,11 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
                           {member.detailsPending && (
                             <span className="text-[9px] px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-semibold border border-rose-500/30">
                               Pending
+                            </span>
+                          )}
+                          {(member.id === 'e23020' || member.canUploadPhotos || member.social?.canUploadPhotos) && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30 flex items-center gap-0.5">
+                              📸 Contributor
                             </span>
                           )}
                         </div>
@@ -616,6 +717,34 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
                   />
                 </div>
 
+                {/* Photo Upload & Add to Drive Contributor Permission */}
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-750 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-white text-xs flex items-center gap-1.5">
+                      <UploadCloud className="w-4 h-4 text-amber-400" />
+                      <span>Drive Upload & "Add to Drive" Contributor Access</span>
+                    </span>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Allow this student to upload photos and access direct Drive upload links.
+                    </p>
+                  </div>
+                  {editingMember.id === 'e23020' ? (
+                    <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                      Super Admin (Always Allowed)
+                    </span>
+                  ) : (
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!editFormData.canUploadPhotos}
+                        onChange={(e) => setEditFormData({ ...editFormData, canUploadPhotos: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  )}
+                </div>
+
                 <div className="pt-2 flex justify-end gap-2">
                   <button
                     type="button"
@@ -722,6 +851,27 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
                   </div>
                 </div>
 
+                <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-750 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-white text-xs flex items-center gap-1.5">
+                      <UploadCloud className="w-4 h-4 text-amber-400" />
+                      <span>Grant Photo Upload & Contributor Access</span>
+                    </span>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Enable this member to upload photos and see "Add to Drive" buttons.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!newMemberData.canUploadPhotos}
+                      onChange={(e) => setNewMemberData({ ...newMemberData, canUploadPhotos: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                  </label>
+                </div>
+
                 <div className="pt-2 flex justify-end gap-2">
                   <button
                     type="button"
@@ -738,6 +888,184 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
                   </button>
                 </div>
               </form>
+            </div>
+          )}
+
+          {/* TAB: UPLOAD & DRIVE CONTRIBUTOR PERMISSIONS */}
+          {activeTab === 'permissions' && !editingMember && !isAddingMember && (
+            <div className="space-y-4 animate-fadeIn">
+              {/* Header Description Card */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-950/40 via-slate-900 to-indigo-950/40 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <UploadCloud className="w-4 h-4 text-amber-400" />
+                    <span>Google Drive Upload & Add-to-Drive Authorization</span>
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                    Select which batchmates are allowed to upload photos into the Batch Vault and see the "Add to Drive / Upload Photos" options. Members who are not authorized have view-only access.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 self-stretch sm:self-auto shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleGrantAllUploadPermissions}
+                    className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                    title="Grant photo upload access to all batchmates"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Authorize All</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleRevokeAllUploadPermissions}
+                    className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-bold transition-colors flex items-center justify-center gap-1.5"
+                    title="Revoke upload permission from all except Super Admin"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-rose-400" />
+                    <span>Revoke All</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Search & Filter Controls */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                <div className="relative flex-1 sm:max-w-xs">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={permissionSearch}
+                    onChange={(e) => setPermissionSearch(e.target.value)}
+                    placeholder="Search name or E-number..."
+                    className="w-full pl-9 pr-8 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:border-amber-400"
+                  />
+                  {permissionSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setPermissionSearch('')}
+                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-white text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Pills */}
+                <div className="flex items-center gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 text-xs">
+                  {[
+                    { id: 'all', label: `All (${batchmates.length})` },
+                    { id: 'allowed', label: `Authorized (${allowedUploadCount})` },
+                    { id: 'restricted', label: `Restricted (${batchmates.length - allowedUploadCount})` }
+                  ].map(filter => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => setPermissionFilter(filter.id)}
+                      className={`px-3 py-1 rounded-lg font-semibold transition-all ${
+                        permissionFilter === filter.id
+                          ? 'bg-amber-400 text-slate-950 shadow-sm'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Members Permission List */}
+              <div className="rounded-2xl border border-slate-800 overflow-hidden bg-slate-950/60 divide-y divide-slate-800">
+                {filteredPermissionMembers.map(member => {
+                  const isSuperAdmin = member.id === 'e23020';
+                  const isAllowed = isSuperAdmin || !!(member.canUploadPhotos || member.social?.canUploadPhotos);
+
+                  return (
+                    <div
+                      key={member.id}
+                      className="p-3.5 sm:px-5 flex items-center justify-between gap-3 hover:bg-slate-900/60 transition-colors"
+                    >
+                      {/* Member Info */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={member.photo}
+                          alt={member.name}
+                          className="w-10 h-10 rounded-xl object-cover border border-slate-700 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-white text-xs sm:text-sm truncate">
+                              {member.name}
+                            </span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-amber-300 shrink-0">
+                              {member.regNo}
+                            </span>
+                            {isSuperAdmin && (
+                              <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 font-black">
+                                Super Admin
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="text-[11px] text-slate-400 flex items-center gap-2 mt-0.5">
+                            <span>{member.role || 'Batchmate'}</span>
+                            <span>•</span>
+                            {isAllowed ? (
+                              <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                                <span>Can Add to Drive & Upload Photos</span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 font-medium flex items-center gap-1">
+                                <Lock className="w-3 h-3 text-slate-500" />
+                                <span>View Only Access (Restricted)</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Interactive Toggle Switch */}
+                      <div className="flex items-center gap-3 shrink-0">
+                        {isSuperAdmin ? (
+                          <span className="text-[11px] font-bold text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/30 flex items-center gap-1.5">
+                            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                            <span className="hidden sm:inline">Always Authorized</span>
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[11px] font-bold ${isAllowed ? 'text-emerald-400' : 'text-slate-500'} hidden sm:inline`}>
+                              {isAllowed ? 'Authorized' : 'Restricted'}
+                            </span>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={isAllowed}
+                              onClick={() => handleTogglePermission(member.id, !isAllowed)}
+                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                isAllowed ? 'bg-emerald-500' : 'bg-slate-750 hover:bg-slate-700'
+                              }`}
+                            >
+                              <span
+                                aria-hidden="true"
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                  isAllowed ? 'translate-x-5' : 'translate-x-0'
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {filteredPermissionMembers.length === 0 && (
+                  <div className="py-12 text-center text-xs text-slate-400">
+                    No batchmates match your filter or search query.
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

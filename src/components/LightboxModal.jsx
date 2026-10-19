@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { X, ChevronLeft, ChevronRight, ExternalLink } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { formatGoogleDriveImageUrl } from '../utils/imageUtils';
 
 export default function LightboxModal({ 
@@ -10,6 +11,8 @@ export default function LightboxModal({
   onPrev,
   driveFolderUrl
 }) {
+  const { isAdmin, canUploadPhotos, currentUser } = useAuth();
+  const userCanUpload = !!(isAdmin || canUploadPhotos || currentUser?.canUploadPhotos || currentUser?.social?.canUploadPhotos);
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
@@ -32,15 +35,16 @@ export default function LightboxModal({
         </div>
 
         <div className="flex items-center gap-2">
-          {driveFolderUrl && (
+          {userCanUpload && driveFolderUrl && (
             <a
               href={driveFolderUrl}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/80 hover:bg-slate-800 border border-slate-800 text-xs text-amber-400 transition-colors"
+              title="Open album in Google Drive to add photos"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">View in Drive</span>
+              <span className="hidden sm:inline">Add to Drive</span>
             </a>
           )}
           <button

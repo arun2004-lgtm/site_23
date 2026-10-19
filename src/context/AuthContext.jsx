@@ -524,6 +524,111 @@ export function AuthProvider({ children }) {
     )
   ));
 
+  // Determine if active user has photo upload & drive contributor permission
+  const canUploadPhotos = !!(
+    isAdmin || 
+    currentUser?.id === 'e23020' || 
+    currentUser?.canUploadPhotos || 
+    currentUser?.social?.canUploadPhotos
+  );
+
+  // Admin capability: toggle upload/Drive contributor permission for a member
+  const setMemberUploadPermission = async (memberId, allowed) => {
+    if (!isAdmin) {
+      throw new Error('Unauthorized: Admin privileges required.');
+    }
+    if (memberId === 'e23020' && !allowed) {
+      throw new Error('Super Admin always has upload access.');
+    }
+
+    const member = batchmates.find(m => m.id === memberId);
+    if (!member) return false;
+
+    const updatedSocial = {
+      ...(member.social || {}),
+      canUploadPhotos: !!allowed
+    };
+
+    const updatedMember = {
+      ...member,
+      canUploadPhotos: !!allowed,
+      social: updatedSocial
+    };
+
+    setBatchmates(prev => {
+      const updated = prev.map(m => m.id === memberId ? updatedMember : m);
+      try {
+        localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
+      } catch (storageErr) {
+        console.warn('LocalStorage quota warning:', storageErr);
+      }
+      return updated;
+    });
+
+    if (currentUser?.id === memberId) {
+      setCurrentUser(prev => ({
+        ...prev,
+        canUploadPhotos: !!allowed,
+        social: updatedSocial
+      }));
+    }
+
+    return await updateMemberInCloud(memberId, {
+      social: updatedSocial,
+      canUploadPhotos: !!allowed
+    });
+  };
+
+  // Admin capability: batch grant or revoke upload permissions
+  const batchSetUploadPermissions = async (memberIds, allowed) => {
+    if (!isAdmin) {
+      throw new Error('Unauthorized: Admin privileges required.');
+    }
+    const targetSet = new Set(memberIds);
+    setBatchmates(prev => {
+      const updated = prev.map(m => {
+        if (!targetSet.has(m.id)) return m;
+        const perm = m.id === 'e23020' ? true : !!allowed;
+        return {
+          ...m,
+          canUploadPhotos: perm,
+          social: {
+            ...(m.social || {}),
+            canUploadPhotos: perm
+          }
+        };
+      });
+      try {
+        localStorage.setItem(BATCHMATES_STORAGE_KEY, JSON.stringify(updated));
+      } catch (storageErr) {
+        console.warn('LocalStorage quota warning:', storageErr);
+      }
+      return updated;
+    });
+
+    if (currentUser && targetSet.has(currentUser.id)) {
+      const perm = currentUser.id === 'e23020' ? true : !!allowed;
+      setCurrentUser(prev => ({
+        ...prev,
+        canUploadPhotos: perm,
+        social: {
+          ...(prev?.social || {}),
+          canUploadPhotos: perm
+        }
+      }));
+    }
+
+    for (const id of memberIds) {
+      if (id === 'e23020' && !allowed) continue;
+      const target = batchmates.find(m => m.id === id);
+      const social = { ...(target?.social || {}), canUploadPhotos: !!allowed };
+      await updateMemberInCloud(id, {
+        social,
+        canUploadPhotos: !!allowed
+      });
+    }
+  };
+
   // Admin capability: update any member permanently
   const updateMemberAsAdmin = async (memberId, updatedFields) => {
     if (!isAdmin) {
@@ -535,6 +640,12 @@ export function AuthProvider({ children }) {
     }
     if (cleanFields.universityEmail !== undefined) {
       cleanFields.universityEmail = cleanFields.universityEmail ? cleanFields.universityEmail.trim().toLowerCase() : '';
+    }
+    if (cleanFields.canUploadPhotos !== undefined) {
+      cleanFields.social = {
+        ...(cleanFields.social || {}),
+        canUploadPhotos: !!cleanFields.canUploadPhotos
+      };
     }
     setBatchmates(prev => {
       const updated = prev.map(m => m.id === memberId ? { ...m, ...cleanFields } : m);
@@ -559,6 +670,11 @@ export function AuthProvider({ children }) {
     }
     const cleanMember = {
       ...newMember,
+      canUploadPhotos: !!newMember.canUploadPhotos,
+      social: {
+        ...(newMember.social || {}),
+        canUploadPhotos: !!newMember.canUploadPhotos
+      },
       personalEmail: (newMember.personalEmail || '').trim().toLowerCase(),
       universityEmail: (newMember.universityEmail || '').trim().toLowerCase()
     };
@@ -603,6 +719,7 @@ export function AuthProvider({ children }) {
       currentUser,
       isLoggedIn: !!currentUser,
       isAdmin,
+      canUploadPhotos,
       batchmates,
       googleAccessToken,
       googleClientId,
@@ -618,6 +735,8 @@ export function AuthProvider({ children }) {
       logout,
       updateProfile,
       updateMemberAsAdmin,
+      setMemberUploadPermission,
+      batchSetUploadPermissions,
       addNewMemberAsAdmin,
       deleteMemberAsAdmin,
       resetBatchRosterToDefaults

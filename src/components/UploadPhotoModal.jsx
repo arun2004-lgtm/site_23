@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { X, UploadCloud, Image, Check, Sparkles, ExternalLink, Loader2, Crop } from 'lucide-react';
+import { X, UploadCloud, Image, Check, Sparkles, ExternalLink, Loader2, Crop, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { photoAlbums } from '../data/batchData';
 import { processImageFile, isHeicFile } from '../utils/imageUtils';
 import ImageCropModal from './ImageCropModal';
 
 export default function UploadPhotoModal({ isOpen, onClose, onPhotoUploaded }) {
-  const { currentUser } = useAuth();
+  const { currentUser, isAdmin, canUploadPhotos } = useAuth();
+  const userCanUpload = !!(isAdmin || canUploadPhotos || currentUser?.canUploadPhotos || currentUser?.social?.canUploadPhotos);
   const [previewUrl, setPreviewUrl] = useState('');
   const [caption, setCaption] = useState('');
   const [targetAlbumId, setTargetAlbumId] = useState(photoAlbums[0]?.id || 'y1-trip');
@@ -112,7 +113,26 @@ export default function UploadPhotoModal({ isOpen, onClose, onPhotoUploaded }) {
           </div>
         </div>
 
-        {uploadSuccess ? (
+        {!userCanUpload ? (
+          <div className="py-10 text-center space-y-4">
+            <div className="w-14 h-14 mx-auto rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center border border-rose-500/30">
+              <Lock className="w-8 h-8" />
+            </div>
+            <h4 className="text-lg font-bold text-white">Upload Access Restricted</h4>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
+              Photo uploading to the batch Google Drive vault is restricted to authorized contributors. To request contributor upload access, please contact the batch administrator (E/23/020 G. Arunothayan).
+            </p>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : uploadSuccess ? (
           <div className="py-12 text-center space-y-3">
             <div className="w-14 h-14 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
               <Check className="w-8 h-8" />

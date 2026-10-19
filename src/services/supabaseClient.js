@@ -33,7 +33,13 @@ export function toDbRow(member) {
   if (member.universityEmail !== undefined) row.university_email = member.universityEmail;
   if (member.personalEmail !== undefined) row.personal_email = member.personalEmail;
   if (member.detailsPending !== undefined) row.details_pending = member.detailsPending;
-  if (member.social !== undefined) row.social = member.social;
+  
+  // Safely embed canUploadPhotos into social JSONB column
+  const socialData = { ...(member.social || {}) };
+  if (member.canUploadPhotos !== undefined) {
+    socialData.canUploadPhotos = !!member.canUploadPhotos;
+  }
+  row.social = socialData;
 
   return row;
 }
@@ -43,6 +49,8 @@ export function toDbRow(member) {
  */
 export function fromDbRow(row) {
   if (!row) return null;
+  const social = row.social || {};
+  const isSuperAdmin = row.id === 'e23020';
   return {
     id: row.id,
     regNo: row.reg_no || '',
@@ -56,7 +64,8 @@ export function fromDbRow(row) {
     universityEmail: row.university_email || '',
     personalEmail: row.personal_email || '',
     detailsPending: !!row.details_pending,
-    social: row.social || {},
+    social,
+    canUploadPhotos: isSuperAdmin || !!(social.canUploadPhotos || row.can_upload_photos),
     updatedAt: row.updated_at
   };
 }

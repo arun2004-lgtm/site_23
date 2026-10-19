@@ -3,6 +3,7 @@ import {
   X, ExternalLink, Folder, 
   Image as ImageIcon, Camera 
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { formatGoogleDriveImageUrl } from '../utils/imageUtils';
 
 export default function DriveFolderViewerModal({ 
@@ -12,6 +13,9 @@ export default function DriveFolderViewerModal({
   onOpenLightbox, 
   allPhotos = [] 
 }) {
+  const { isAdmin, canUploadPhotos, currentUser } = useAuth();
+  const userCanUpload = !!(isAdmin || canUploadPhotos || currentUser?.canUploadPhotos || currentUser?.social?.canUploadPhotos);
+
   const [modalMode, setModalMode] = useState('iframe'); // 'iframe' | 'inApp'
   const [prevAlbumId, setPrevAlbumId] = useState(album?.id);
 
@@ -101,16 +105,18 @@ export default function DriveFolderViewerModal({
               </button>
             </div>
 
-            <a
-              href={album.driveFolderUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-semibold border border-slate-700 transition-colors"
-              title="Open folder directly in Google Drive"
-            >
-              <span>Drive App</span>
-              <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
-            </a>
+            {userCanUpload && (
+              <a
+                href={album.driveFolderUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-semibold transition-colors"
+                title="Open folder directly in Google Drive to add photos"
+              >
+                <span>Add to Drive</span>
+                <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+              </a>
+            )}
 
             <button
               onClick={onClose}
@@ -176,14 +182,16 @@ export default function DriveFolderViewerModal({
                   >
                     View Drive Iframe
                   </button>
-                  <a
-                    href={album.driveFolderUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 font-bold text-xs"
-                  >
-                    Open in Drive App ↗
-                  </a>
+                  {userCanUpload && (
+                    <a
+                      href={album.driveFolderUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 font-bold text-xs"
+                    >
+                      Open in Drive App ↗
+                    </a>
+                  )}
                 </div>
               </div>
             )}
@@ -208,15 +216,21 @@ export default function DriveFolderViewerModal({
             </span>
           </div>
 
-          <a
-            href={album.driveFolderUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-amber-400 hover:underline flex items-center gap-1 shrink-0 font-medium text-[11px]"
-          >
-            <span>Trouble viewing inside? Click to open directly in Google Drive App</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
+          {userCanUpload ? (
+            <a
+              href={album.driveFolderUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-amber-400 hover:underline flex items-center gap-1 shrink-0 font-medium text-[11px]"
+            >
+              <span>Add to Drive / Open in Google Drive App</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+          ) : (
+            <span className="text-slate-500 text-[11px]">
+              Protected Batch Archive (Read-Only)
+            </span>
+          )}
         </div>
 
       </div>

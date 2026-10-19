@@ -36,7 +36,8 @@ export const originalBatchmates = [
     department: "Engineering Faculty",
     quote: "Building the official E/23 portal. 4 semesters down at Pera Eng, 4 more to go!",
     detailsPending: false,
-    social: { instagram: "arunothayan_g", linkedin: "arunothayan", phone: "+94 77 123 4567" }
+    canUploadPhotos: true,
+    social: { instagram: "arunothayan_g", linkedin: "arunothayan", phone: "+94 77 123 4567", canUploadPhotos: true }
   },
   {
     id: "e23010",

@@ -5,6 +5,7 @@ import {
   Image as ImageIcon, 
   UploadCloud, 
   Unlock, 
+  Lock,
   ShieldCheck, 
   Sparkles, 
   LogIn, 
@@ -35,10 +36,19 @@ export default function PhotoGallery({
   const { 
     isLoggedIn, 
     currentUser, 
+    isAdmin,
+    canUploadPhotos,
     syncedDrivePhotos, 
     isSyncingDrive, 
     syncProgress 
   } = useAuth();
+
+  const userCanUpload = !!(
+    isAdmin || 
+    canUploadPhotos || 
+    currentUser?.canUploadPhotos || 
+    currentUser?.social?.canUploadPhotos
+  );
 
   const [viewMode, setViewMode] = useState('liveVault'); // 'liveVault' (Native Restricted Drive Vault), 'stream' (Featured Photos Grid), or 'albums' (9 Drive Folders)
   const [activeVaultFolder, setActiveVaultFolder] = useState(() => {
@@ -227,18 +237,35 @@ export default function PhotoGallery({
           <div className="flex flex-wrap items-center gap-3">
             {isLoggedIn ? (
               <>
-                <button
-                  onClick={onOpenUploadModal}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all hover:scale-105"
-                >
-                  <UploadCloud className="w-4 h-4" />
-                  <span>+ Upload Photos</span>
-                </button>
+                {userCanUpload ? (
+                  <button
+                    onClick={onOpenUploadModal}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition-all hover:scale-105"
+                  >
+                    <UploadCloud className="w-4 h-4" />
+                    <span>+ Upload Photos</span>
+                  </button>
+                ) : (
+                  <div 
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-850 border border-slate-750 text-slate-400 text-xs font-medium"
+                    title="Photo upload access is reserved for designated contributors."
+                  >
+                    <Lock className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Viewer Access</span>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
                   <Unlock className="w-3.5 h-3.5" />
                   <span>Unlocked ({currentUser.regNo})</span>
                 </div>
+
+                {userCanUpload && (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold shadow-sm">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Drive Contributor</span>
+                  </div>
+                )}
 
                 {/* Google Drive Native Vault Status */}
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold shadow-sm">
@@ -514,17 +541,19 @@ export default function PhotoGallery({
                         <span className="truncate">{photo.albumTitle}</span>
                       </span>
 
-                      <a
-                        href={photo.driveFolderUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-amber-400 hover:text-amber-300 flex items-center gap-0.5 shrink-0 transition-colors font-medium text-[10px]"
-                        title="Open folder in Google Drive"
-                      >
-                        <span>Drive</span>
-                        <ExternalLink className="w-2.5 h-2.5" />
-                      </a>
+                      {userCanUpload && (
+                        <a
+                          href={photo.driveFolderUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-amber-400 hover:text-amber-300 flex items-center gap-0.5 shrink-0 transition-colors font-medium text-[10px]"
+                          title="Open folder in Google Drive to add photos"
+                        >
+                          <span>Add to Drive</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -612,23 +641,25 @@ export default function PhotoGallery({
               <div className="p-4 pt-0 border-t border-slate-800/80 mt-3 flex items-center justify-between gap-2">
                 <button
                   onClick={() => setSelectedDriveFolder(album)}
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-white text-xs font-semibold transition-colors border border-slate-700"
+                  className={`${userCanUpload ? 'flex-1' : 'w-full'} flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-750 text-white text-xs font-semibold transition-colors border border-slate-700`}
                   title="Browse folder inside website"
                 >
                   <Folder className="w-3.5 h-3.5 text-amber-400" />
                   <span>Browse in App</span>
                 </button>
 
-                <a
-                  href={album.driveFolderUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20"
-                  title="Open directly in Google Drive"
-                >
-                  <span>Drive Folder</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                {userCanUpload && (
+                  <a
+                    href={album.driveFolderUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold transition-all shadow-md shadow-rose-600/20"
+                    title="Open directly in Google Drive to add photos"
+                  >
+                    <span>Add to Drive</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
               </div>
 
             </div>
@@ -710,16 +741,19 @@ export default function PhotoGallery({
                   <span className="hidden sm:inline">{isVaultExpanded ? "Minimize" : "Fullscreen"}</span>
                 </button>
 
-                {/* Open in Google Drive */}
-                <a
-                  href={activeVaultFolder?.driveFolderUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20"
-                >
-                  <span>Open in Drive</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                {/* Open in Google Drive / Add to Drive */}
+                {userCanUpload && (
+                  <a
+                    href={activeVaultFolder?.driveFolderUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs transition-all shadow-md shadow-amber-500/20"
+                    title="Open Google Drive folder to add photos"
+                  >
+                    <span>Add to Drive</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
               </div>
             </div>
 
@@ -866,28 +900,38 @@ export default function PhotoGallery({
           <div>
             <h4 className="text-base font-bold text-white">Have more batch photos from Year 1 or Year 2?</h4>
             <p className="text-xs text-slate-300 mt-0.5">
-              Upload photos directly into our batch archive under your E-Number ({currentUser?.regNo}).
+              {userCanUpload
+                ? `Upload photos directly into our batch archive under your E-Number (${currentUser?.regNo || 'E/23'}).`
+                : 'Photo uploading is restricted to authorized contributors. Contact the admin to request contributor access.'}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={onOpenUploadModal}
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs transition-all flex items-center gap-1.5 whitespace-nowrap shadow"
-          >
-            <UploadCloud className="w-3.5 h-3.5" />
-            <span>Upload Photos</span>
-          </button>
-          <a
-            href="https://drive.google.com"
-            target="_blank"
-            rel="noreferrer"
-            className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap border border-slate-700"
-          >
-            <span>Google Drive</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          {userCanUpload ? (
+            <>
+              <button
+                onClick={onOpenUploadModal}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs transition-all flex items-center gap-1.5 whitespace-nowrap shadow"
+              >
+                <UploadCloud className="w-3.5 h-3.5" />
+                <span>Upload Photos</span>
+              </button>
+              <a
+                href="https://drive.google.com"
+                target="_blank"
+                rel="noreferrer"
+                className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition-colors flex items-center gap-1.5 whitespace-nowrap border border-slate-700"
+              >
+                <span>Add to Drive</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </>
+          ) : (
+            <span className="px-3.5 py-2 rounded-xl bg-slate-800/80 border border-slate-750 text-slate-400 text-xs font-medium">
+              Contributor Access Required
+            </span>
+          )}
         </div>
       </div>
 
