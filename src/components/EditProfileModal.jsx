@@ -3,7 +3,7 @@ import {
   X, User, Calendar, Camera, Briefcase, Quote, Check, Sparkles, 
   ShieldCheck, Link2, Upload, Loader2, RotateCcw, 
   CloudUpload, Settings2, CheckCircle2, AlertCircle, 
-  ChevronRight, ChevronLeft, Globe, AtSign, Phone, Crop
+  ChevronRight, ChevronLeft, Globe, AtSign, Phone, Crop, Zap
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { formatGoogleDriveImageUrl, processImageFile, isHeicFile, uploadImageToGoogleDrive } from '../utils/imageUtils';
@@ -29,6 +29,9 @@ export default function EditProfileModal({ isOpen, onClose }) {
   );
   const [testStatus, setTestStatus] = useState(null); // 'testing' | 'success' | 'error'
   const [testMessage, setTestMessage] = useState('');
+  const [isPhotoAutoSaving, setIsPhotoAutoSaving] = useState(false);
+  const [photoAutoSaved, setPhotoAutoSaved] = useState(false);
+  const [photoAutoSaveMsg, setPhotoAutoSaveMsg] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
   const [rawImageForCrop, setRawImageForCrop] = useState(null);
@@ -69,6 +72,46 @@ export default function EditProfileModal({ isOpen, onClose }) {
       setActiveTab('info');
     }
   }
+
+  // Auto-save photo immediately into profile & cloud database
+  const savePhotoImmediately = async (photoUrl, sourceLabel = 'Profile photo') => {
+    if (!photoUrl) return;
+    const formatted = formatGoogleDriveImageUrl(photoUrl.trim());
+    setFormData(prev => ({ ...prev, photo: formatted }));
+    setIsPhotoAutoSaving(true);
+    setPhotoAutoSaveMsg('');
+
+    try {
+      await updateProfile({
+        photo: formatted
+      });
+      setPhotoAutoSaved(true);
+      setPhotoAutoSaveMsg(`${sourceLabel} saved automatically!`);
+      setTimeout(() => {
+        setPhotoAutoSaved(false);
+        setPhotoAutoSaveMsg('');
+      }, 4500);
+    } catch (err) {
+      console.error('Failed to auto-save profile photo:', err);
+      setDriveUploadError(err.message || 'Auto-save failed');
+    } finally {
+      setIsPhotoAutoSaving(false);
+    }
+  };
+
+  const handleSafeClose = async () => {
+    // If photo was changed in state but differs from currentUser.photo, save it before closing
+    if (formData.photo && formData.photo.trim() !== (currentUser?.photo || '').trim()) {
+      try {
+        await updateProfile({
+          photo: formatGoogleDriveImageUrl(formData.photo.trim())
+        });
+      } catch (err) {
+        console.warn('Auto-save on modal close warning:', err);
+      }
+    }
+    onClose();
+  };
 
   if (!isOpen || !currentUser) return null;
 
@@ -127,8 +170,8 @@ export default function EditProfileModal({ isOpen, onClose }) {
     setIsCropModalOpen(false);
     setRawImageForCrop(null);
 
-    // Apply the perfectly framed and compressed portrait
-    setFormData(prev => ({ ...prev, photo: croppedDataUrl }));
+    // Auto-save the framed photo immediately without requiring Save Profile click!
+    await savePhotoImmediately(croppedDataUrl, 'Framed photo');
 
     // Check if Google Apps Script Web App upload endpoint is configured
     const activeGasUrl = (gasUrlInput || localStorage.getItem('site23_gas_upload_url') || import.meta.env.VITE_GOOGLE_DRIVE_UPLOAD_URL || '').trim();
@@ -142,7 +185,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
       try {
         const directDriveUrl = await uploadImageToGoogleDrive(croppedDataUrl, filename, activeGasUrl);
         if (directDriveUrl) {
-          setFormData(prev => ({ ...prev, photo: directDriveUrl }));
+          await savePhotoImmediately(directDriveUrl, 'Google Drive photo');
           setDriveUploadSuccess(true);
         }
       } catch (uploadErr) {
@@ -283,7 +326,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleSafeClose}
             className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
             title="Close"
           >
@@ -494,9 +537,13 @@ export default function EditProfileModal({ isOpen, onClose }) {
                     {/* Reset Button */}
                     <button
                       type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, photo: getDefaultAvatar(prev.name || currentUser?.name) }))}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition-colors"
-                      title="Reset to clean vector initials avatar"
+                      disabled={isPhotoAutoSaving}
+                      onClick={async () => {
+                        const defaultImg = getDefaultAvatar(formData.name || currentUser?.name);
+                        await savePhotoImmediately(defaultImg, 'Initials avatar');
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition-colors disabled:opacity-50"
+                      title="Reset to clean vector initials avatar and save immediately"
                     >
                       <RotateCcw className="w-3.5 h-3.5 text-amber-400" />
                       <span>Reset to Initials</span>
@@ -505,7 +552,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
                 </div>
               </div>
 
-              {/* Status messages for photo upload */}
+              {/* Status messages for photo upload & auto-saving */}
               {isConvertingPhoto && (
                 <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 flex items-center gap-2">
                   <Loader2 className="w-4 h-4 animate-spin shrink-0" />
@@ -527,11 +574,17 @@ export default function EditProfileModal({ isOpen, onClose }) {
                 </div>
               )}
 
-              {/* Status reassurance: photo is ready to sync to Supabase */}
-              {!driveUploadSuccess && !isUploadingToDrive && formData.photo && !formData.photo.includes('api.dicebear.com') && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-[11px] text-emerald-300 flex items-center gap-2">
+              {isPhotoAutoSaving && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 flex items-center gap-2 animate-pulse">
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0 text-amber-400" />
+                  <span>Auto-saving photo directly to your profile and cloud database...</span>
+                </div>
+              )}
+
+              {photoAutoSaved && !isPhotoAutoSaving && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[11px] text-emerald-300 flex items-center gap-2 animate-fadeIn">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Photo framed & ready! Click <strong>Save Profile</strong> below to sync permanently across all devices ✨</span>
+                  <span>{photoAutoSaveMsg || 'Photo saved automatically to your profile! ✨'}</span>
                 </div>
               )}
 
@@ -542,22 +595,56 @@ export default function EditProfileModal({ isOpen, onClose }) {
                 </div>
               )}
 
+              {/* Instant Auto-Save reassurance notice */}
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 flex items-center gap-2">
+                <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span>
+                  <strong>⚡ Instant Auto-Save:</strong> Uploading, framing or resetting your photo saves automatically to your profile! No need to click "Save Profile" below.
+                </span>
+              </div>
+
               {/* Image URL / Google Drive Share Link */}
               <div>
                 <label className="block font-semibold text-slate-300 mb-1 flex items-center justify-between">
                   <span>Or Paste Image Link (Google Drive, Web URL)</span>
+                  {formData.photo && formData.photo.trim() !== (currentUser?.photo || '').trim() && (
+                    <button
+                      type="button"
+                      disabled={isPhotoAutoSaving}
+                      onClick={() => savePhotoImmediately(formData.photo, 'Pasted photo link')}
+                      className="text-[11px] px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold flex items-center gap-1 transition-colors disabled:opacity-50"
+                      title="Save this photo link immediately"
+                    >
+                      {isPhotoAutoSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                      <span>Save Photo Now</span>
+                    </button>
+                  )}
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     value={formData.photo}
                     onChange={(e) => setFormData({ ...formData, photo: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (formData.photo?.trim()) {
+                          savePhotoImmediately(formData.photo, 'Pasted photo link');
+                        }
+                      }
+                    }}
+                    onBlur={() => {
+                      const val = (formData.photo || '').trim();
+                      if (val && val !== (currentUser?.photo || '').trim()) {
+                        savePhotoImmediately(val, 'Pasted photo link');
+                      }
+                    }}
                     placeholder="https://drive.google.com/file/d/... or direct image link"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-400 text-xs font-mono"
                   />
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  💡 Paste any Google Drive file link — our engine automatically converts it into a high-res embed thumbnail.
+                  💡 Paste any Google Drive file link — our engine automatically converts it into a high-res embed thumbnail and auto-saves it.
                 </p>
               </div>
 
@@ -841,7 +928,7 @@ export default function EditProfileModal({ isOpen, onClose }) {
             <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleSafeClose}
                 className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors"
               >
                 Cancel

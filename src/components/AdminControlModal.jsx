@@ -1179,10 +1179,19 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
             setIsCropOpen(false);
             setCropImageSrc(null);
           }}
-          onCropComplete={(croppedUrl) => {
+          onCropComplete={async (croppedUrl) => {
             setEditFormData(prev => ({ ...prev, photo: croppedUrl }));
             setIsCropOpen(false);
             setCropImageSrc(null);
+            if (editingMember?.id) {
+              try {
+                await updateMemberAsAdmin(editingMember.id, { photo: croppedUrl });
+                setActionSuccess(`Framed photo saved for ${editingMember.name}!`);
+                setTimeout(() => setActionSuccess(''), 3500);
+              } catch (err) {
+                console.warn('Failed to auto-save admin cropped photo:', err);
+              }
+            }
           }}
         />
 
