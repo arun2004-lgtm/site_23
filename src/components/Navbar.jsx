@@ -18,6 +18,14 @@ export default function Navbar({
   const todayBirthdaysCount = batchmates.filter(m => isBirthdayToday(m.birthday)).length;
   const isMyBirthdayToday = currentUser?.birthday && isBirthdayToday(currentUser.birthday);
 
+  const handleTabClick = (tab) => {
+    if (activeTab === tab) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+    } else {
+      setActiveTab(tab);
+    }
+  };
+
   return (
     <>
       {/* Top Header Navigation Bar */}
@@ -46,13 +54,7 @@ export default function Navbar({
           {/* Desktop Navigation Tabs (Hidden on mobile) */}
           <nav className="hidden md:flex items-center gap-1.5">
             <button
-              onClick={() => {
-                if (activeTab === 'home') {
-                  window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-                } else {
-                  setActiveTab('home');
-                }
-              }}
+              onClick={() => handleTabClick('home')}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'home'
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
@@ -64,13 +66,7 @@ export default function Navbar({
             </button>
 
             <button
-              onClick={() => {
-                if (activeTab === 'birthdays') {
-                  window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-                } else {
-                  setActiveTab('birthdays');
-                }
-              }}
+              onClick={() => handleTabClick('birthdays')}
               className={`relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'birthdays'
                   ? 'bg-amber-600 text-white shadow-md shadow-amber-600/30'
@@ -87,13 +83,7 @@ export default function Navbar({
             </button>
 
             <button
-              onClick={() => {
-                if (activeTab === 'gallery') {
-                  window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-                } else {
-                  setActiveTab('gallery');
-                }
-              }}
+              onClick={() => handleTabClick('gallery')}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === 'gallery'
                   ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
@@ -197,13 +187,7 @@ export default function Navbar({
         <div className="flex items-center justify-around max-w-md mx-auto">
           {/* Home Tab */}
           <button
-            onClick={() => {
-              if (activeTab === 'home') {
-                window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-              } else {
-                setActiveTab('home');
-              }
-            }}
+            onClick={() => handleTabClick('home')}
             className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all min-w-[64px] min-h-[44px] ${
               activeTab === 'home'
                 ? 'text-amber-400 font-bold scale-105'
@@ -219,13 +203,7 @@ export default function Navbar({
 
           {/* Birthdays Tab */}
           <button
-            onClick={() => {
-              if (activeTab === 'birthdays') {
-                window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-              } else {
-                setActiveTab('birthdays');
-              }
-            }}
+            onClick={() => handleTabClick('birthdays')}
             className={`relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all min-w-[64px] min-h-[44px] ${
               activeTab === 'birthdays'
                 ? 'text-amber-400 font-bold scale-105'
@@ -248,13 +226,7 @@ export default function Navbar({
 
           {/* Drive Photos Tab */}
           <button
-            onClick={() => {
-              if (activeTab === 'gallery') {
-                window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
-              } else {
-                setActiveTab('gallery');
-              }
-            }}
+            onClick={() => handleTabClick('gallery')}
             className={`flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all min-w-[64px] min-h-[44px] ${
               activeTab === 'gallery'
                 ? 'text-rose-400 font-bold scale-105'

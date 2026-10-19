@@ -106,3 +106,24 @@ export function sortByUpcomingBirthday(members) {
     return daysA - daysB;
   });
 }
+
+/**
+ * Generates celebratory birthday greeting text for clipboard copy
+ */
+export function getBirthdayWishText(person) {
+  if (!person) return '';
+  const age = getTurningAge(person.birthday);
+  const ageText = age ? ` on turning ${age}` : '';
+  return `Happy Birthday ${person.name}! 🎂🎉 Wishing you an incredible year ahead filled with happiness, academic triumph, and great memories${ageText} from all of us in Batch '23! 🥳✨`;
+}
+
+/**
+ * Opens WhatsApp chat prefilled with celebratory birthday greeting
+ */
+export function shareBirthdayWishViaWhatsApp(person) {
+  if (!person || typeof window === 'undefined') return;
+  const turningAge = getTurningAge(person.birthday);
+  const ageText = turningAge ? ` on turning ${turningAge}` : '';
+  const text = `🎂 *Happy Birthday ${person.name}!* 🎉%0A%0AWishing you an extraordinary year ahead filled with joy, success, and great engineering triumphs${ageText}!%0A%0A_Sent with love from the Class of E/23_ 🥳✨`;
+  window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+}

@@ -189,6 +189,7 @@ function AppContent() {
             {/* Hero Banner with Stats */}
             <Hero
               batchInfo={batchInfo}
+              batchmatesCount={batchmates.length}
               setActiveTab={setActiveTab}
               onOpenGuide={() => setIsGuideOpen(true)}
             />

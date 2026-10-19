@@ -187,11 +187,11 @@ export default function EditProfileModal({ isOpen, onClose }) {
         name: formData.name,
         nickname: formData.nickname,
         birthday: formData.birthday,
-        photo: formatGoogleDriveImageUrl(formData.photo.trim()),
+        photo: formatGoogleDriveImageUrl((formData.photo || '').trim()),
         role: formData.role,
         department: formData.department,
         quote: formData.quote,
-        personalEmail: formData.personalEmail.trim().toLowerCase(),
+        personalEmail: (formData.personalEmail || '').trim().toLowerCase(),
         detailsPending: false,
         social: {
           instagram: formData.instagram,

@@ -151,19 +151,19 @@ export default function AdminControlModal({ isOpen, onClose, initialMemberToEdit
 
     try {
       await updateMemberAsAdmin(editingMember.id, {
-        name: editFormData.name.trim(),
-        nickname: editFormData.nickname.trim(),
+        name: (editFormData.name || '').trim(),
+        nickname: (editFormData.nickname || '').trim(),
         birthday: editFormData.birthday,
-        photo: formatGoogleDriveImageUrl(editFormData.photo.trim()),
-        role: editFormData.role.trim(),
-        department: editFormData.department.trim(),
-        quote: editFormData.quote.trim(),
-        universityEmail: editFormData.universityEmail.trim().toLowerCase(),
-        personalEmail: editFormData.personalEmail.trim().toLowerCase(),
+        photo: formatGoogleDriveImageUrl((editFormData.photo || '').trim()),
+        role: (editFormData.role || '').trim(),
+        department: (editFormData.department || '').trim(),
+        quote: (editFormData.quote || '').trim(),
+        universityEmail: (editFormData.universityEmail || '').trim().toLowerCase(),
+        personalEmail: (editFormData.personalEmail || '').trim().toLowerCase(),
         social: {
-          instagram: editFormData.instagram.trim(),
-          linkedin: editFormData.linkedin.trim(),
-          phone: editFormData.phone.trim()
+          instagram: (editFormData.instagram || '').trim(),
+          linkedin: (editFormData.linkedin || '').trim(),
+          phone: (editFormData.phone || '').trim()
         },
         detailsPending: false
       });

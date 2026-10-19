@@ -1,7 +1,7 @@
 import React from 'react';
 import { Cake, Camera, Users, FolderArchive, ArrowRight, GraduationCap, Calendar } from 'lucide-react';
 
-export default function Hero({ batchInfo, setActiveTab, onOpenGuide }) {
+export default function Hero({ batchInfo, setActiveTab, onOpenGuide, batchmatesCount }) {
   return (
     <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800 p-6 sm:p-12 transform-gpu isolate">
       {/* Background accents */}
@@ -79,7 +79,7 @@ export default function Hero({ batchInfo, setActiveTab, onOpenGuide }) {
           </div>
 
           <div className="p-3 sm:p-4 rounded-2xl bg-slate-950/90 border border-slate-800 shadow-sm transform-gpu">
-            <div className="text-xl sm:text-3xl font-extrabold text-indigo-400">45</div>
+            <div className="text-xl sm:text-3xl font-extrabold text-indigo-400">{batchmatesCount || 45}</div>
             <div className="text-xs text-slate-400 mt-1 flex items-center justify-center gap-1">
               <Users className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               <span>Batchmates</span>

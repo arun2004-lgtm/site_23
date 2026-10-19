@@ -16,7 +16,8 @@ import {
   formatBirthday, 
   getDaysUntilBirthday, 
   isBirthdayToday,
-  sortByUpcomingBirthday
+  sortByUpcomingBirthday,
+  getBirthdayWishText
 } from '../utils/birthdayUtils';
 import { useAuth } from '../context/AuthContext';
 
@@ -79,7 +80,7 @@ export default function BatchDirectory({ onTriggerConfetti, onOpenEditProfile, o
   }, [batchmates, searchQuery, selectedMonth, sortBy]);
 
   const handleCopyWish = (person) => {
-    const text = `Hey ${person.name}! Happy Birthday! 🎂🎉 Hope you have an awesome celebration! Greetings from Batch '23! ✨`;
+    const text = getBirthdayWishText(person);
     navigator.clipboard.writeText(text);
     setCopiedId(person.id);
     setTimeout(() => setCopiedId(null), 2500);

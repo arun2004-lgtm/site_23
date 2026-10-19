@@ -7,7 +7,9 @@ import {
 import { 
   isBirthdayToday, 
   formatBirthday, 
-  getTurningAge 
+  getTurningAge,
+  getBirthdayWishText,
+  shareBirthdayWishViaWhatsApp
 } from '../utils/birthdayUtils';
 import { 
   downloadBirthdayStoryImage, 
@@ -53,21 +55,13 @@ export default function BirthdayPoster({ batchmates, onTriggerConfetti }) {
   const turningAge = currentCelebrant?.birthday ? getTurningAge(currentCelebrant.birthday) : null;
 
   const handleCopyWish = (person) => {
-    const age = getTurningAge(person.birthday);
-    const ageText = age ? ` on turning ${age}` : '';
-    const text = `Happy Birthday ${person.name}! 🎂🎉 Wishing you an incredible year ahead filled with happiness, academic triumph, and great memories${ageText} from all of us in Batch '23! 🥳✨`;
-    
+    const text = getBirthdayWishText(person);
     navigator.clipboard.writeText(text);
     setCopiedId(person.id);
     setTimeout(() => setCopiedId(null), 2500);
   };
 
-  const handleShareWhatsAppChat = (person) => {
-    const age = getTurningAge(person.birthday);
-    const ageText = age ? ` on turning ${age}` : '';
-    const text = `🎂 *Happy Birthday ${person.name}!* 🎉%0A%0AWishing you an extraordinary year ahead filled with joy, success, and great engineering triumphs${ageText}!%0A%0A_Sent with love from the Class of E/23_ 🥳✨`;
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
-  };
+  const handleShareWhatsAppChat = shareBirthdayWishViaWhatsApp;
 
   // WhatsApp Status / Story generation & share
   const handleAddToWhatsAppStatus = async (person) => {

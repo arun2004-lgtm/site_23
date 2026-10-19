@@ -8,7 +8,8 @@ import {
   formatBirthday, 
   getDaysUntilBirthday, 
   sortByUpcomingBirthday, 
-  getTurningAge 
+  getTurningAge,
+  shareBirthdayWishViaWhatsApp
 } from '../utils/birthdayUtils';
 
 /**
@@ -42,12 +43,7 @@ export default function BirthdayBanner({
     }
   }, [realCelebrants.length, onTriggerConfetti]);
 
-  const handleShareWhatsAppChat = (person) => {
-    const turningAge = getTurningAge(person.birthday);
-    const ageText = turningAge ? ` on turning ${turningAge}` : '';
-    const text = `🎂 *Happy Birthday ${person.name}!* 🎉%0A%0AWishing you an extraordinary year ahead filled with joy, success, and great engineering triumphs${ageText}!%0A%0A_Sent with love from the Class of E/23_ 🥳✨`;
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
-  };
+  const handleShareWhatsAppChat = shareBirthdayWishViaWhatsApp;
 
   // =========================================================================
   // CASE 1: REAL BIRTHDAY TODAY -> CELEBRATION SPOTLIGHT BANNER
