@@ -158,24 +158,24 @@ export const photoAlbums = [
   // --- YEAR 2 FOLDERS ---
   {
     id: "y2-trip",
-    title: "Year 2: Batch Trip & Tour 🚌",
+    title: "Year 2: Batch Trip 3.0 🎒",
     year: "Year 2",
     category: "Year 2",
     type: "Trips",
-    folderId: "1CKgVmJxfKBbWPw8al94kUL1pU-4HI_HL",
-    driveFolderUrl: "https://drive.google.com/drive/folders/1CKgVmJxfKBbWPw8al94kUL1pU-4HI_HL?usp=drive_link",
-    description: "Second year batch tour, industrial excursion, exploring new destinations, and bus karaoke.",
+    folderId: "1DINr6lLjXd2jYDYACZm7OdjbSH-YJ31P",
+    driveFolderUrl: "https://drive.google.com/drive/folders/1DINr6lLjXd2jYDYACZm7OdjbSH-YJ31P?usp=drive_link",
+    description: "Year 2 Batch Trip 3.0 — exploring new destinations, scenic views, campfire laughter, and bus karaoke.",
     itemCount: "Google Drive Folder",
     coverImage: "https://drive.google.com/file/d/1uOPGE9xa2IL00TVdqgawC1maWUGQ5yBW/view?usp=sharing",
-    restricted: true,
+    restricted: false,
     samplePhotos: [
       {
         url: "https://drive.google.com/file/d/12KTrTe5u7j5tAhkJ2Q7Dp2tsa51n0eKu/view?usp=sharing",
-        caption: "Year 2 tour bus karaoke and trip highlights."
+        caption: "Year 2 Batch Trip 3.0 highlights."
       },
       {
         url: "https://drive.google.com/file/d/13A74p4XJJPZixizFovrtCNXTjIJmE3XO/view?usp=sharing",
-        caption: "Scenic sunset stop during Year 2 tour."
+        caption: "Scenic sunset stop during Year 2 Batch Trip 3.0."
       }
     ]
   },
