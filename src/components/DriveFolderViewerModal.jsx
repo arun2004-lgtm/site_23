@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  X, ExternalLink, ShieldCheck, Lock, Folder, 
+  X, ExternalLink, Folder, 
   Image as ImageIcon, Camera 
 } from 'lucide-react';
 import { formatGoogleDriveImageUrl } from '../utils/imageUtils';
@@ -63,10 +63,6 @@ export default function DriveFolderViewerModal({
                 </h3>
                 <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[11px] font-semibold text-rose-300">
                   {album.year}
-                </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-semibold text-emerald-400">
-                  <Lock className="w-3 h-3" />
-                  <span>Restricted to Authorized Accounts</span>
                 </span>
               </div>
               <p className="text-xs text-slate-400 truncate mt-0.5">
@@ -194,20 +190,6 @@ export default function DriveFolderViewerModal({
           </div>
         ) : (
           <div className="relative flex-1 bg-slate-950 flex flex-col">
-            {/* iOS Helper Notice inside modal */}
-            <div className="p-2.5 px-4 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between gap-2 text-xs text-amber-300">
-              <span className="text-[11px]">
-                📱 <strong>iPhone Safari Notice:</strong> Apple blocks cookies inside website frames. If you see "Request permission", tap <strong>"In-App Photos"</strong> above or <strong>"Drive App"</strong> to view without permission errors!
-              </span>
-              <button
-                type="button"
-                onClick={() => setModalMode('inApp')}
-                className="shrink-0 text-amber-400 font-bold underline text-[11px]"
-              >
-                Switch to In-App Photos
-              </button>
-            </div>
-
             <iframe
               src={embedUrl}
               title={album.title}
@@ -220,9 +202,9 @@ export default function DriveFolderViewerModal({
         {/* Security & Access Footer Notice */}
         <div className="p-3 sm:p-4 bg-slate-900 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 shrink-0">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+            <Folder className="w-4 h-4 text-amber-400 shrink-0" />
             <span>
-              <strong className="text-slate-200">Google Drive Permission Security:</strong> Verified through your Google account.
+              <strong className="text-slate-200">Google Drive:</strong> {album.title}
             </span>
           </div>
 

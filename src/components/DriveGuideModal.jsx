@@ -21,8 +21,8 @@ export default function DriveGuideModal({ isOpen, onClose }) {
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-white">Google Drive Access Control Settings</h3>
-            <p className="text-xs text-slate-400">How to ensure ONLY batch members can view the photos</p>
+            <h3 className="text-xl font-bold text-white">Google Drive Folder Sharing Guide</h3>
+            <p className="text-xs text-slate-400">How to configure Drive folders so photos load seamlessly for batchmates</p>
           </div>
         </div>
 
@@ -32,15 +32,15 @@ export default function DriveGuideModal({ isOpen, onClose }) {
           <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
             <div className="flex items-center gap-2 font-bold text-emerald-400 text-xs uppercase tracking-wider">
               <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[11px]">1</span>
-              <span>Set Folder Sharing to "Restricted" in Google Drive</span>
+              <span>Set Folder Sharing to "Anyone with the link" (Viewer)</span>
             </div>
             <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-              To make sure random visitors cannot see your photos:
+              To ensure all photos load smoothly inside the website without permission prompts or cookie errors:
             </p>
             <ul className="text-xs text-slate-400 space-y-1.5 list-disc list-inside">
               <li>Open each folder in <a href="https://drive.google.com" target="_blank" rel="noreferrer" className="text-amber-400 underline">Google Drive</a>.</li>
               <li>Right-click the folder and click <strong>Share &rarr; Share</strong>.</li>
-              <li>Under <strong>General access</strong>, select <span className="text-emerald-400 font-bold">"Restricted"</span> (do NOT choose "Anyone with the link").</li>
+              <li>Under <strong>General access</strong>, select <span className="text-emerald-400 font-bold">"Anyone with the link"</span> and set the role to <span className="text-amber-300 font-semibold">Viewer</span>.</li>
             </ul>
           </div>
 
@@ -48,17 +48,10 @@ export default function DriveGuideModal({ isOpen, onClose }) {
           <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
             <div className="flex items-center gap-2 font-bold text-amber-400 text-xs uppercase tracking-wider">
               <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[11px]">2</span>
-              <span>Add E/23 Batch Emails or Domain Access</span>
+              <span>Protected Inside the Batch Portal</span>
             </div>
             <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-              In the "Add people, groups and calendar events" box:
-            </p>
-            <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-amber-300 space-y-1">
-              <div>Option A: Add batch group email: e.g. <span className="text-white">e23@eng.pdn.ac.lk</span></div>
-              <div>Option B: Or paste the 32 batch emails (<span className="text-white">e23009@..., e23020@...</span>)</div>
-            </div>
-            <p className="text-[11px] text-slate-400">
-              You can grant them <strong>"Viewer"</strong> access so they can view and download photos, or <strong>"Editor"</strong> so they can also upload!
+              Only authenticated batch members who log into the portal have access to browse albums, view photo galleries, and download batch memories. The links are never exposed to unauthenticated visitors.
             </p>
           </div>
 
@@ -66,16 +59,11 @@ export default function DriveGuideModal({ isOpen, onClose }) {
           <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 space-y-2">
             <div className="flex items-center gap-2 font-bold text-indigo-400 text-xs uppercase tracking-wider">
               <span className="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-[11px]">3</span>
-              <span>How It Works for Batchmates on this Website</span>
+              <span>Zero Cookie & Permission Prompts on iPhone & Android</span>
             </div>
             <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-              When an E/23 batchmate clicks <strong>"Browse in App"</strong> or <strong>"Drive Folder"</strong> on the website:
+              With "Anyone with the link", Safari (iOS) and Chrome load photos natively into the In-App Gallery and Lightbox without blocking third-party cookies or demanding account verification tabs.
             </p>
-            <ul className="text-xs text-slate-400 space-y-1 list-disc list-inside">
-              <li>Google checks their active browser account.</li>
-              <li>If they are logged in with their allowed account, all photos open instantly!</li>
-              <li>If an unauthorized person tries to access it, Google Drive shows <strong>"Access Denied / You Need Access"</strong>.</li>
-            </ul>
           </div>
         </div>
 

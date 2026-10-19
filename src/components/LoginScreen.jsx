@@ -1,26 +1,18 @@
 import React, { useState } from 'react';
-import { Lock, AlertCircle, CheckCircle2, GraduationCap, ShieldCheck, Settings, Loader2 } from 'lucide-react';
+import { Lock, AlertCircle, CheckCircle2, GraduationCap, ShieldCheck, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { batchInfo } from '../data/batchData';
-import GoogleOAuthModal from './GoogleOAuthModal';
 
 export default function LoginScreen() {
-  const { loginWithGoogleOAuth, googleClientId } = useAuth();
+  const { loginWithGoogleOAuth } = useAuth();
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isOAuthModalOpen, setIsOAuthModalOpen] = useState(false);
 
   // 1-Click Google OAuth Sign-In
   const handleGoogleOAuthClick = async () => {
     setError('');
     setIsLoading(true);
-
-    if (!googleClientId) {
-      setIsLoading(false);
-      setIsOAuthModalOpen(true);
-      return;
-    }
 
     try {
       setSuccessMsg('Opening Google OAuth account chooser...');
@@ -29,9 +21,6 @@ export default function LoginScreen() {
     } catch (err) {
       setSuccessMsg('');
       setError(err.message || 'Google authorization failed.');
-      if (err.message?.includes('Client ID')) {
-        setIsOAuthModalOpen(true);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -59,18 +48,10 @@ export default function LoginScreen() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-full border border-slate-800">
+            <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-900/80 px-3 py-1.5 rounded-full border border-slate-800">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
               <span>Google OAuth 2.0 Protected</span>
             </div>
-
-            <button
-              onClick={() => setIsOAuthModalOpen(true)}
-              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white border border-slate-800 transition-colors"
-              title="Google OAuth Client Settings"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </header>
@@ -157,12 +138,6 @@ export default function LoginScreen() {
           </div>
 
         </div>
-
-        {/* Google Drive OAuth Modal */}
-        <GoogleOAuthModal
-          isOpen={isOAuthModalOpen}
-          onClose={() => setIsOAuthModalOpen(false)}
-        />
       </main>
 
       {/* Footer */}

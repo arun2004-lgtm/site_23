@@ -4,7 +4,6 @@ import {
   ExternalLink, 
   Image as ImageIcon, 
   UploadCloud, 
-  Lock, 
   Unlock, 
   ShieldCheck, 
   Sparkles, 
@@ -23,7 +22,6 @@ import { useAuth } from '../context/AuthContext';
 import DriveFolderViewerModal from './DriveFolderViewerModal';
 import ShufflePlaceholder from './ShufflePlaceholder';
 import MemoryShuffler from './MemoryShuffler';
-import GoogleOAuthModal from './GoogleOAuthModal';
 import { formatGoogleDriveImageUrl } from '../utils/imageUtils';
 
 export default function PhotoGallery({ 
@@ -55,21 +53,9 @@ export default function PhotoGallery({
   const [vaultRefreshKey, setVaultRefreshKey] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState('ALL');
 
-  // Detect iOS / iPhone / iPad to optimize iframe cookie handling
-  const isIOS = useMemo(() => {
-    if (typeof navigator === 'undefined') return false;
-    return (
-      /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-    );
-  }, []);
-
-  // 'inApp' = Native In-App Photo Grid with Lightbox (100% cookie-free, no permission prompts, no new tabs!)
+  // 'inApp' = Native In-App Photo Grid with Lightbox
   // 'iframe' = Google Drive Embedded Folder View
-  const [vaultDisplayMode, setVaultDisplayMode] = useState(() => {
-    if (isIOS) return 'inApp';
-    return 'inApp';
-  });
+  const [vaultDisplayMode, setVaultDisplayMode] = useState('inApp');
 
   // React pattern: Adjust state during render when selectedAlbumId changes
   const [prevSelectedAlbumId, setPrevSelectedAlbumId] = useState(selectedAlbumId);
@@ -104,10 +90,7 @@ export default function PhotoGallery({
   }, [selectedAlbumId]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDriveFolder, setSelectedDriveFolder] = useState(null);
-  const [showAccessHelp, setShowAccessHelp] = useState(false);
   const [showLoadingHelp, setShowLoadingHelp] = useState(false);
-  const [showIosTip, setShowIosTip] = useState(false);
-  const [isOAuthModalOpen, setIsOAuthModalOpen] = useState(false);
   const [shuffleOrder, setShuffleOrder] = useState(0);
 
   // Filter options
@@ -265,14 +248,6 @@ export default function PhotoGallery({
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Google Drive Vault Active</span>
                 </div>
-                <button
-                  onClick={() => setIsOAuthModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 text-xs font-medium transition-colors"
-                  title={`View all ${albums.length} connected Google Drive folders`}
-                >
-                  <Folder className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{albums.length} Folders</span>
-                </button>
               </>
             ) : (
               <button
@@ -290,14 +265,6 @@ export default function PhotoGallery({
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               <span>How to Load Photos</span>
-            </button>
-
-            <button
-              onClick={() => setShowAccessHelp(!showAccessHelp)}
-              className="px-3.5 py-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-750 text-xs font-semibold text-amber-400 transition-colors flex items-center gap-1.5"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Drive Security</span>
             </button>
           </div>
         </div>
@@ -379,60 +346,6 @@ export default function PhotoGallery({
           </div>
         )}
 
-        {/* Access Settings Explainer Card (Toggleable) */}
-        {showAccessHelp && (
-          <div className="mt-6 p-4 sm:p-5 rounded-2xl bg-slate-950/90 border border-amber-500/30 text-xs text-slate-300 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-amber-400 text-sm flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>How Google Drive "Restricted Access" Works on this Website:</span>
-              </span>
-              <button 
-                onClick={() => setShowAccessHelp(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                ✕ Close
-              </button>
-            </div>
-            
-            <p className="leading-relaxed">
-              <strong>Yes!</strong> By configuring each folder's Google Drive sharing setting to <span className="text-emerald-400 font-semibold">"Restricted"</span>, only Google accounts explicitly invited (or university accounts with <code className="text-amber-300">@eng.pdn.ac.lk</code>) can view or download the photos.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 text-[11px]">
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <div className="font-bold text-white flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center">1</span>
-                  <span>Set to "Restricted"</span>
-                </div>
-                <p className="text-slate-400">
-                  In Google Drive, right-click the folder &rarr; Share &rarr; Under General Access, choose <strong>"Restricted"</strong>.
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <div className="font-bold text-white flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center">2</span>
-                  <span>Add Batch Emails</span>
-                </div>
-                <p className="text-slate-400">
-                  Add the batch group email or individual classmate emails (`e23xxx@eng.pdn.ac.lk` or their personal Gmails).
-                </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1">
-                <div className="font-bold text-white flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">3</span>
-                  <span>100% Protected</span>
-                </div>
-                <p className="text-slate-400">
-                  When someone clicks the folder on this website, Google verifies their login. Outsiders get "Access Denied"!
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* View Mode Switcher & Category Filter Tabs */}
         <div className="mt-6 pt-5 border-t border-slate-800/80 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           
@@ -446,8 +359,8 @@ export default function PhotoGallery({
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Lock className="w-3.5 h-3.5 text-emerald-300" />
-              <span>🔒 Live Restricted Vault</span>
+              <Folder className="w-3.5 h-3.5 text-emerald-300" />
+              <span>Batch Photo Vault</span>
             </button>
 
             <button
@@ -656,10 +569,7 @@ export default function PhotoGallery({
                     <span className="px-2 py-1 rounded-md bg-slate-950/85 backdrop-blur-md text-[10px] font-semibold text-amber-300 border border-slate-750">
                       {album.type}
                     </span>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-slate-950/85 backdrop-blur-md text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
-                      <Lock className="w-3 h-3" />
-                      <span>Restricted</span>
-                    </span>
+
                   </div>
                 </div>
 
@@ -739,9 +649,9 @@ export default function PhotoGallery({
           <div className="p-4 sm:p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
-                <div className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>Google Drive Native Session Active • Zero Personal Drive Access Requested</span>
+                <div className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                  <Folder className="w-3.5 h-3.5" />
+                  <span>Batch Photo Vault</span>
                 </div>
                 <h3 className="text-xl font-black text-white mt-1 flex items-center gap-2">
                   <span>{activeVaultFolder?.title || 'Select a Folder'}</span>
@@ -920,9 +830,6 @@ export default function PhotoGallery({
                       <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[11px] font-semibold text-rose-300">
                         {currentAlbumPhotos.length} {currentAlbumPhotos.length === 1 ? 'Photo' : 'Photos'}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-semibold text-emerald-400">
-                        ✓ No Google sign-in required
-                      </span>
                     </div>
                     <p className="text-xs text-slate-300 mt-1">
                       Native In-App Gallery: Tap any photo below to open the fullscreen Lightbox with pinch-to-zoom and instant downloads.
@@ -1024,9 +931,9 @@ export default function PhotoGallery({
               {/* Native In-App Vault Footer */}
               <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-400">
                 <span className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <ImageIcon className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>
-                    <strong className="text-slate-200">100% Mobile & Safari Friendly:</strong> Photos load natively without Google cookie prompts, account switching tabs, or third-party tracking blocks.
+                    <strong className="text-slate-200">Batch Photo Gallery:</strong> Tap any photo to view in fullscreen Lightbox.
                   </span>
                 </span>
                 <span className="text-slate-500 font-mono text-[11px] shrink-0">Folder ID: {activeVaultFolder?.folderId}</span>
@@ -1034,56 +941,6 @@ export default function PhotoGallery({
             </div>
           ) : (
             <div className="space-y-4">
-              {/* iPhone / Safari Cookie Notice & Instant App Shortcut */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-950 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                <div className="flex items-start gap-2.5 text-slate-300">
-                  <span className="text-base shrink-0">📱</span>
-                  <div>
-                    <span className="font-bold text-amber-300">
-                      {isIOS ? 'iPhone / Safari Notice: "Request permission" notice' : 'iPhone / Safari "Request permission" error?'}
-                    </span>
-                    <p className="text-[11px] text-slate-300 mt-0.5">
-                      Apple Safari blocks cookies in iframes. Switching accounts opens in a separate tab instead of inside the site. Tap <strong>In-App Photos</strong> to view immediately without permissions!
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setVaultDisplayMode('inApp')}
-                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
-                  >
-                    <ImageIcon className="w-3.5 h-3.5" />
-                    <span>In-App Photos ({currentAlbumPhotos.length})</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowIosTip(!showIosTip)}
-                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white text-xs border border-slate-700 transition-colors shrink-0"
-                  >
-                    {showIosTip ? 'Hide Guide' : 'How to Fix Safari'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Collapsible iOS Safari Fix Guide */}
-              {showIosTip && (
-                <div className="p-4 rounded-2xl bg-slate-950 border border-amber-500/30 text-xs text-slate-300 space-y-2.5 animate-in fade-in">
-                  <div className="font-bold text-amber-300 flex items-center justify-between">
-                    <span>To load Google Drive directly inside the webpage on iPhone:</span>
-                    <button onClick={() => setShowIosTip(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
-                  </div>
-                  <ol className="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
-                    <li>Open iPhone <strong>Settings</strong> app.</li>
-                    <li>Scroll down and tap <strong>Safari</strong> (or <strong>Apps ➔ Safari</strong> on iOS 18).</li>
-                    <li>Under <strong>Privacy & Security</strong>, turn <strong>OFF</strong> <span className="text-amber-300 font-semibold">"Prevent Cross-Site Tracking"</span>.</li>
-                    <li>Return here and refresh — the entire Google Drive folder will load directly inside the frame!</li>
-                  </ol>
-                </div>
-              )}
-
               {/* Full-bleed Embedded Google Drive Iframe Grid */}
               <div className={`rounded-3xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl relative transition-all ${
                 isVaultExpanded 
@@ -1116,9 +973,9 @@ export default function PhotoGallery({
 
               <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-400">
                 <span className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <Folder className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>
-                    <strong className="text-slate-200">100% Private & Protected:</strong> Verified natively via your active Google browser session. Only accounts permitted by host (<code className="text-amber-300">peradeniyaguys@gmail.com</code>) can view or download these photos.
+                    <strong className="text-slate-200">Google Drive Live View:</strong> Direct embed of {activeVaultFolder?.title}.
                   </span>
                 </span>
                 <span className="text-slate-500 font-mono text-[11px] shrink-0">Folder ID: {activeVaultFolder?.folderId}</span>
@@ -1172,12 +1029,6 @@ export default function PhotoGallery({
           allPhotos={allPhotos}
         />
       )}
-
-      {/* Google OAuth & Drive Sync Modal */}
-      <GoogleOAuthModal
-        isOpen={isOAuthModalOpen}
-        onClose={() => setIsOAuthModalOpen(false)}
-      />
     </div>
   );
 }
