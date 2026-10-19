@@ -22,8 +22,3 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
-# WhatsApp Birthday Bot generated output & session files
-scripts/whatsapp-birthday-bot/output/
-scripts/whatsapp-birthday-bot/sent_history.json
-scripts/whatsapp-birthday-bot/auth_info_baileys/
