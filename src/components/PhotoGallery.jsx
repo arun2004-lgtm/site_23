@@ -53,9 +53,6 @@ export default function PhotoGallery({
   const [vaultRefreshKey, setVaultRefreshKey] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState('ALL');
 
-  // 'inApp' = Native In-App Photo Grid with Lightbox
-  // 'iframe' = Google Drive Embedded Folder View
-  const [vaultDisplayMode, setVaultDisplayMode] = useState('inApp');
 
   // React pattern: Adjust state during render when selectedAlbumId changes
   const [prevSelectedAlbumId, setPrevSelectedAlbumId] = useState(selectedAlbumId);
@@ -666,85 +663,52 @@ export default function PhotoGallery({
 
               {/* Top Action Toolbar */}
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Vault View Mode Toggle: In-App Photos vs Google Drive Embedded Iframe */}
+                {/* Layout Toggle (Grid / List) */}
                 <div className="flex items-center p-0.5 bg-slate-950 rounded-xl border border-slate-800">
                   <button
-                    type="button"
-                    onClick={() => setVaultDisplayMode('inApp')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      vaultDisplayMode === 'inApp'
-                        ? 'bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 shadow-md font-bold'
+                    onClick={() => setVaultLayout('grid')}
+                    className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-all ${
+                      vaultLayout === 'grid' 
+                        ? 'bg-slate-800 text-amber-400 font-bold shadow' 
                         : 'text-slate-400 hover:text-white'
                     }`}
+                    title="Grid View"
                   >
-                    <ImageIcon className="w-3.5 h-3.5" />
-                    <span>In-App Photos ({currentAlbumPhotos.length})</span>
+                    <Grid className="w-3.5 h-3.5" />
+                    <span className="text-[11px] hidden sm:inline">Grid</span>
                   </button>
-
                   <button
-                    type="button"
-                    onClick={() => setVaultDisplayMode('iframe')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      vaultDisplayMode === 'iframe'
-                        ? 'bg-slate-800 text-amber-400 shadow-md font-bold'
+                    onClick={() => setVaultLayout('list')}
+                    className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-all ${
+                      vaultLayout === 'list' 
+                        ? 'bg-slate-800 text-amber-400 font-bold shadow' 
                         : 'text-slate-400 hover:text-white'
                     }`}
+                    title="List View"
                   >
-                    <Folder className="w-3.5 h-3.5" />
-                    <span>Drive Iframe</span>
+                    <List className="w-3.5 h-3.5" />
+                    <span className="text-[11px] hidden sm:inline">List</span>
                   </button>
                 </div>
 
-                {vaultDisplayMode === 'iframe' && (
-                  <>
-                    {/* Layout Toggle (Grid / List) */}
-                    <div className="flex items-center p-0.5 bg-slate-950 rounded-xl border border-slate-800">
-                      <button
-                        onClick={() => setVaultLayout('grid')}
-                        className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-all ${
-                          vaultLayout === 'grid' 
-                            ? 'bg-slate-800 text-amber-400 font-bold shadow' 
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                        title="Grid View"
-                      >
-                        <Grid className="w-3.5 h-3.5" />
-                        <span className="text-[11px] hidden sm:inline">Grid</span>
-                      </button>
-                      <button
-                        onClick={() => setVaultLayout('list')}
-                        className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-all ${
-                          vaultLayout === 'list' 
-                            ? 'bg-slate-800 text-amber-400 font-bold shadow' 
-                            : 'text-slate-400 hover:text-white'
-                        }`}
-                        title="List View"
-                      >
-                        <List className="w-3.5 h-3.5" />
-                        <span className="text-[11px] hidden sm:inline">List</span>
-                      </button>
-                    </div>
+                {/* Reload / Refresh Button */}
+                <button
+                  onClick={() => setVaultRefreshKey(prev => prev + 1)}
+                  className="p-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-300 hover:text-white transition-colors"
+                  title="Reload Google Drive folder"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </button>
 
-                    {/* Reload / Refresh Button */}
-                    <button
-                      onClick={() => setVaultRefreshKey(prev => prev + 1)}
-                      className="p-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-300 hover:text-white transition-colors"
-                      title="Reload Google Drive folder"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                    </button>
-
-                    {/* Fullscreen Expand Toggle */}
-                    <button
-                      onClick={() => setIsVaultExpanded(!isVaultExpanded)}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-300 hover:text-white text-xs font-semibold transition-colors"
-                      title={isVaultExpanded ? "Exit Fullscreen" : "Fullscreen Vault View"}
-                    >
-                      {isVaultExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                      <span className="hidden sm:inline">{isVaultExpanded ? "Minimize" : "Fullscreen"}</span>
-                    </button>
-                  </>
-                )}
+                {/* Fullscreen Expand Toggle */}
+                <button
+                  onClick={() => setIsVaultExpanded(!isVaultExpanded)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-300 hover:text-white text-xs font-semibold transition-colors"
+                  title={isVaultExpanded ? "Exit Fullscreen" : "Fullscreen Vault View"}
+                >
+                  {isVaultExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                  <span className="hidden sm:inline">{isVaultExpanded ? "Minimize" : "Fullscreen"}</span>
+                </button>
 
                 {/* Open in Google Drive */}
                 <a
@@ -813,61 +777,27 @@ export default function PhotoGallery({
             </div>
           </div>
 
-          {/* VAULT CONTENT AREA: IN-APP PHOTOS OR GOOGLE DRIVE IFRAME */}
-          {vaultDisplayMode === 'inApp' ? (
-            <div className="space-y-4">
-              {/* In-App Photos Top Summary Banner */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-950 border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
-                    <ImageIcon className="w-5 h-5" />
+          {/* VAULT CONTENT AREA: GOOGLE DRIVE LIVE PHOTO GALLERY */}
+          <div className="space-y-4">
+            {/* Quick Photo Highlights (if available for 1-click fullscreen Lightbox) */}
+            {currentAlbumPhotos.length > 0 && (
+              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800">
+                <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800/60">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-bold text-white">
+                      Curated Highlights ({currentAlbumPhotos.length} {currentAlbumPhotos.length === 1 ? 'Photo' : 'Photos'})
+                    </span>
+                    <span className="text-[11px] text-slate-400 hidden sm:inline">• Tap to view in fullscreen Lightbox</span>
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="text-base font-bold text-white">
-                        {activeVaultFolder?.title}
-                      </h4>
-                      <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[11px] font-semibold text-rose-300">
-                        {currentAlbumPhotos.length} {currentAlbumPhotos.length === 1 ? 'Photo' : 'Photos'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-300 mt-1">
-                      Native In-App Gallery: Tap any photo below to open the fullscreen Lightbox with pinch-to-zoom and instant downloads.
-                    </p>
-                  </div>
+                  <span className="text-[11px] text-slate-400">Full Google Drive Album below ↓</span>
                 </div>
-
-                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                  <a
-                    href={activeVaultFolder?.driveFolderUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5"
-                    title="Open folder directly in Google Drive"
-                  >
-                    <span>Drive App</span>
-                    <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
-                  </a>
-
-                  <button
-                    type="button"
-                    onClick={() => setVaultDisplayMode('iframe')}
-                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-amber-300 hover:text-amber-200 text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5"
-                  >
-                    <Folder className="w-3.5 h-3.5" />
-                    <span>View Drive Iframe</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Photos Grid */}
-              {currentAlbumPhotos.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2.5">
                   {currentAlbumPhotos.map((photo, pIdx) => (
                     <div
                       key={photo.id || pIdx}
                       onClick={() => onOpenLightbox(currentAlbumPhotos, pIdx, activeVaultFolder?.driveFolderUrl)}
-                      className="group relative aspect-video sm:aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer border border-slate-800 hover:border-amber-400/60 bg-slate-950 transition-all hover:scale-[1.02] shadow-md hover:shadow-amber-500/10"
+                      className="group relative aspect-video rounded-xl overflow-hidden cursor-pointer border border-slate-800 hover:border-amber-400/60 bg-slate-950 transition-all hover:scale-[1.03] shadow"
                     >
                       <img
                         src={formatGoogleDriveImageUrl(photo.url)}
@@ -875,113 +805,55 @@ export default function PhotoGallery({
                         loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
-                      
-                      {/* Hover Overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-950/80 text-amber-300 border border-amber-400/30 backdrop-blur-sm">
-                            #{pIdx + 1}
-                          </span>
-                          <span className="p-1 rounded-lg bg-slate-900/80 text-white backdrop-blur-sm">
-                            <Maximize2 className="w-3.5 h-3.5" />
-                          </span>
-                        </div>
-
-                        <div>
-                          <p className="text-xs font-semibold text-white line-clamp-1">
-                            {photo.caption || activeVaultFolder?.title}
-                          </p>
-                          <p className="text-[10px] text-slate-300 mt-0.5">
-                            Click to enlarge in Lightbox
-                          </p>
-                        </div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-1.5">
+                        <span className="text-[10px] font-semibold text-white line-clamp-1">{photo.caption || `#${pIdx + 1}`}</span>
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="rounded-3xl bg-slate-950 border border-slate-800 p-12 text-center flex flex-col items-center justify-center space-y-3">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
-                    <Camera className="w-7 h-7 text-amber-400" />
+              </div>
+            )}
+
+            {/* Full-bleed Embedded Google Drive Photo Gallery */}
+            <div className={`rounded-3xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl relative transition-all ${
+              isVaultExpanded 
+                ? 'fixed inset-4 z-50 flex flex-col max-w-7xl mx-auto my-auto h-[92vh] border-amber-500/40 ring-1 ring-amber-500/30' 
+                : 'h-[750px] sm:h-[820px]'
+            }`}>
+              {isVaultExpanded && (
+                <div className="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-2">
+                    <Folder className="w-4 h-4 text-amber-400" />
+                    <span className="font-bold text-white text-xs">{activeVaultFolder?.title}</span>
                   </div>
-                  <h4 className="text-base font-bold text-white">No photos indexed in the local gallery for this album yet</h4>
-                  <p className="text-xs text-slate-400 max-w-md">
-                    This folder is live on Google Drive. You can load it directly via Drive Iframe or open the Google Drive app.
-                  </p>
-                  <div className="flex items-center gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => setVaultDisplayMode('iframe')}
-                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-amber-300 text-xs font-semibold border border-slate-700 transition-colors"
-                    >
-                      Switch to Drive Iframe
-                    </button>
-                    <a
-                      href={activeVaultFolder?.driveFolderUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs shadow-md transition-all"
-                    >
-                      Open in Drive App ↗
-                    </a>
-                  </div>
+                  <button
+                    onClick={() => setIsVaultExpanded(false)}
+                    className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-750 text-xs font-semibold text-slate-300 flex items-center gap-1"
+                  >
+                    <Minimize2 className="w-3.5 h-3.5" />
+                    <span>Exit Fullscreen</span>
+                  </button>
                 </div>
               )}
-
-              {/* Native In-App Vault Footer */}
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-400">
-                <span className="flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>
-                    <strong className="text-slate-200">Batch Photo Gallery:</strong> Tap any photo to view in fullscreen Lightbox.
-                  </span>
-                </span>
-                <span className="text-slate-500 font-mono text-[11px] shrink-0">Folder ID: {activeVaultFolder?.folderId}</span>
-              </div>
+              <iframe
+                key={`${activeVaultFolder?.folderId}-${vaultLayout}-${vaultRefreshKey}`}
+                src={`https://drive.google.com/embeddedfolderview?id=${activeVaultFolder?.folderId}#${vaultLayout}`}
+                title={activeVaultFolder?.title || 'Google Drive Folder'}
+                className="w-full h-full border-0 flex-1"
+                allow="autoplay; encrypted-media; fullscreen"
+              />
             </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Full-bleed Embedded Google Drive Iframe Grid */}
-              <div className={`rounded-3xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl relative transition-all ${
-                isVaultExpanded 
-                  ? 'fixed inset-4 z-50 flex flex-col max-w-7xl mx-auto my-auto h-[92vh] border-amber-500/40 ring-1 ring-amber-500/30' 
-                  : 'h-[750px] sm:h-[820px]'
-              }`}>
-                {isVaultExpanded && (
-                  <div className="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-2">
-                      <Folder className="w-4 h-4 text-amber-400" />
-                      <span className="font-bold text-white text-xs">{activeVaultFolder?.title}</span>
-                    </div>
-                    <button
-                      onClick={() => setIsVaultExpanded(false)}
-                      className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-750 text-xs font-semibold text-slate-300 flex items-center gap-1"
-                    >
-                      <Minimize2 className="w-3.5 h-3.5" />
-                      <span>Exit Fullscreen</span>
-                    </button>
-                  </div>
-                )}
-                <iframe
-                  key={`${activeVaultFolder?.folderId}-${vaultLayout}-${vaultRefreshKey}`}
-                  src={`https://drive.google.com/embeddedfolderview?id=${activeVaultFolder?.folderId}#${vaultLayout}`}
-                  title={activeVaultFolder?.title || 'Google Drive Folder'}
-                  className="w-full h-full border-0 flex-1"
-                  allow="autoplay; encrypted-media; fullscreen"
-                />
-              </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-400">
-                <span className="flex items-center gap-2">
-                  <Folder className="w-4 h-4 text-amber-400 shrink-0" />
-                  <span>
-                    <strong className="text-slate-200">Google Drive Live View:</strong> Direct embed of {activeVaultFolder?.title}.
-                  </span>
+            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-400">
+              <span className="flex items-center gap-2">
+                <Folder className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>
+                  <strong className="text-slate-200">Google Drive Live View:</strong> Direct embed of {activeVaultFolder?.title}.
                 </span>
-                <span className="text-slate-500 font-mono text-[11px] shrink-0">Folder ID: {activeVaultFolder?.folderId}</span>
-              </div>
+              </span>
+              <span className="text-slate-500 font-mono text-[11px] shrink-0">Folder ID: {activeVaultFolder?.folderId}</span>
             </div>
-          )}
+          </div>
         </div>
       )}
 

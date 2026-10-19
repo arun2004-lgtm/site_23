@@ -12,12 +12,12 @@ export default function DriveFolderViewerModal({
   onOpenLightbox, 
   allPhotos = [] 
 }) {
-  const [modalMode, setModalMode] = useState('inApp'); // 'inApp' | 'iframe'
+  const [modalMode, setModalMode] = useState('iframe'); // 'iframe' | 'inApp'
   const [prevAlbumId, setPrevAlbumId] = useState(album?.id);
 
   if (album?.id !== prevAlbumId) {
     setPrevAlbumId(album?.id);
-    setModalMode('inApp');
+    setModalMode('iframe');
   }
 
   useEffect(() => {
@@ -76,28 +76,28 @@ export default function DriveFolderViewerModal({
             <div className="flex items-center p-0.5 bg-slate-950 rounded-xl border border-slate-800">
               <button
                 type="button"
+                onClick={() => setModalMode('iframe')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  modalMode === 'iframe'
+                    ? 'bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Folder className="w-3.5 h-3.5" />
+                <span>Drive Gallery (Live)</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setModalMode('inApp')}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   modalMode === 'inApp'
                     ? 'bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 shadow'
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
                 <ImageIcon className="w-3.5 h-3.5" />
-                <span>Photos ({albumPhotos.length})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setModalMode('iframe')}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  modalMode === 'iframe'
-                    ? 'bg-slate-800 text-amber-400 shadow'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Folder className="w-3.5 h-3.5" />
-                <span>Drive Iframe</span>
+                <span>Highlights ({albumPhotos.length})</span>
               </button>
             </div>
 
