@@ -17,7 +17,7 @@ import {
   Grid,
   List,
   LayoutGrid,
-  RefreshCw 
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import DriveFolderViewerModal from './DriveFolderViewerModal';
@@ -54,6 +54,22 @@ export default function PhotoGallery({
   const [isVaultExpanded, setIsVaultExpanded] = useState(false);
   const [vaultRefreshKey, setVaultRefreshKey] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState('ALL');
+
+  // Detect iOS / iPhone / iPad to optimize iframe cookie handling
+  const isIOS = useMemo(() => {
+    if (typeof navigator === 'undefined') return false;
+    return (
+      /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    );
+  }, []);
+
+  // 'inApp' = Native In-App Photo Grid with Lightbox (100% cookie-free, no permission prompts, no new tabs!)
+  // 'iframe' = Google Drive Embedded Folder View
+  const [vaultDisplayMode, setVaultDisplayMode] = useState(() => {
+    if (isIOS) return 'inApp';
+    return 'inApp';
+  });
 
   // React pattern: Adjust state during render when selectedAlbumId changes
   const [prevSelectedAlbumId, setPrevSelectedAlbumId] = useState(selectedAlbumId);
@@ -136,6 +152,24 @@ export default function PhotoGallery({
 
     return combined;
   }, [albums, syncedDrivePhotos]);
+
+  // Current active vault album photos (all photos for the currently selected folder)
+  const currentAlbumPhotos = useMemo(() => {
+    if (!activeVaultFolder) return [];
+    const direct = allPhotos.filter(p => p.albumId === activeVaultFolder.id || p.folderId === activeVaultFolder.folderId);
+    if (direct.length > 0) return direct;
+    return (activeVaultFolder.samplePhotos || []).map((p, idx) => ({
+      ...p,
+      id: `sample-${activeVaultFolder.id}-${idx}`,
+      url: formatGoogleDriveImageUrl(p.url),
+      rawUrl: p.url,
+      caption: p.caption || activeVaultFolder.title,
+      albumTitle: activeVaultFolder.title,
+      albumId: activeVaultFolder.id,
+      year: activeVaultFolder.year,
+      driveFolderUrl: activeVaultFolder.driveFolderUrl
+    }));
+  }, [allPhotos, activeVaultFolder]);
 
   // Filter photos based on tab and search query
   const filteredPhotos = useMemo(() => {
@@ -722,52 +756,85 @@ export default function PhotoGallery({
 
               {/* Top Action Toolbar */}
               <div className="flex items-center gap-2 flex-wrap">
-                {/* Layout Toggle (Grid / List) */}
+                {/* Vault View Mode Toggle: In-App Photos vs Google Drive Embedded Iframe */}
                 <div className="flex items-center p-0.5 bg-slate-950 rounded-xl border border-slate-800">
                   <button
-                    onClick={() => setVaultLayout('grid')}
-                    className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-all ${
-                      vaultLayout === 'grid' 
-                        ? 'bg-slate-800 text-amber-400 font-bold shadow' 
+                    type="button"
+                    onClick={() => setVaultDisplayMode('inApp')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      vaultDisplayMode === 'inApp'
+                        ? 'bg-gradient-to-r from-amber-500 to-rose-500 text-slate-950 shadow-md font-bold'
                         : 'text-slate-400 hover:text-white'
                     }`}
-                    title="Grid View"
                   >
-                    <Grid className="w-3.5 h-3.5" />
-                    <span className="text-[11px] hidden sm:inline">Grid</span>
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>In-App Photos ({currentAlbumPhotos.length})</span>
                   </button>
+
                   <button
-                    onClick={() => setVaultLayout('list')}
-                    className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-all ${
-                      vaultLayout === 'list' 
-                        ? 'bg-slate-800 text-amber-400 font-bold shadow' 
+                    type="button"
+                    onClick={() => setVaultDisplayMode('iframe')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      vaultDisplayMode === 'iframe'
+                        ? 'bg-slate-800 text-amber-400 shadow-md font-bold'
                         : 'text-slate-400 hover:text-white'
                     }`}
-                    title="List View"
                   >
-                    <List className="w-3.5 h-3.5" />
-                    <span className="text-[11px] hidden sm:inline">List</span>
+                    <Folder className="w-3.5 h-3.5" />
+                    <span>Drive Iframe</span>
                   </button>
                 </div>
 
-                {/* Reload / Refresh Button */}
-                <button
-                  onClick={() => setVaultRefreshKey(prev => prev + 1)}
-                  className="p-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-300 hover:text-white transition-colors"
-                  title="Reload Google Drive folder"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                </button>
+                {vaultDisplayMode === 'iframe' && (
+                  <>
+                    {/* Layout Toggle (Grid / List) */}
+                    <div className="flex items-center p-0.5 bg-slate-950 rounded-xl border border-slate-800">
+                      <button
+                        onClick={() => setVaultLayout('grid')}
+                        className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-all ${
+                          vaultLayout === 'grid' 
+                            ? 'bg-slate-800 text-amber-400 font-bold shadow' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                        title="Grid View"
+                      >
+                        <Grid className="w-3.5 h-3.5" />
+                        <span className="text-[11px] hidden sm:inline">Grid</span>
+                      </button>
+                      <button
+                        onClick={() => setVaultLayout('list')}
+                        className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-all ${
+                          vaultLayout === 'list' 
+                            ? 'bg-slate-800 text-amber-400 font-bold shadow' 
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                        title="List View"
+                      >
+                        <List className="w-3.5 h-3.5" />
+                        <span className="text-[11px] hidden sm:inline">List</span>
+                      </button>
+                    </div>
 
-                {/* Fullscreen Expand Toggle */}
-                <button
-                  onClick={() => setIsVaultExpanded(!isVaultExpanded)}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-300 hover:text-white text-xs font-semibold transition-colors"
-                  title={isVaultExpanded ? "Exit Fullscreen" : "Fullscreen Vault View"}
-                >
-                  {isVaultExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                  <span className="hidden sm:inline">{isVaultExpanded ? "Minimize" : "Fullscreen"}</span>
-                </button>
+                    {/* Reload / Refresh Button */}
+                    <button
+                      onClick={() => setVaultRefreshKey(prev => prev + 1)}
+                      className="p-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-300 hover:text-white transition-colors"
+                      title="Reload Google Drive folder"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Fullscreen Expand Toggle */}
+                    <button
+                      onClick={() => setIsVaultExpanded(!isVaultExpanded)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-750 text-slate-300 hover:text-white text-xs font-semibold transition-colors"
+                      title={isVaultExpanded ? "Exit Fullscreen" : "Fullscreen Vault View"}
+                    >
+                      {isVaultExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                      <span className="hidden sm:inline">{isVaultExpanded ? "Minimize" : "Fullscreen"}</span>
+                    </button>
+                  </>
+                )}
 
                 {/* Open in Google Drive */}
                 <a
@@ -836,127 +903,228 @@ export default function PhotoGallery({
             </div>
           </div>
 
-          {/* Quick Photo Highlights for Active Album */}
-          {activeVaultFolder?.samplePhotos && activeVaultFolder.samplePhotos.length > 0 && (
-            <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-white flex items-center gap-1.5">
-                  <ImageIcon className="w-4 h-4 text-amber-400" />
-                  <span>{activeVaultFolder.title} — Key Highlights ({activeVaultFolder.samplePhotos.length})</span>
-                </span>
-                <span className="text-slate-400 text-[11px]">Click photo to open full-screen lightbox</span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {activeVaultFolder.samplePhotos.map((photo, pIdx) => (
-                  <div
-                    key={pIdx}
-                    onClick={() => onOpenLightbox(activeVaultFolder.samplePhotos, pIdx, activeVaultFolder.driveFolderUrl)}
-                    className="relative aspect-video rounded-xl overflow-hidden cursor-pointer group border border-slate-800 hover:border-amber-400/60 transition-all hover:scale-[1.02] shadow-sm bg-slate-950"
-                  >
-                    <img
-                      src={formatGoogleDriveImageUrl(photo.url)}
-                      alt={photo.caption || activeVaultFolder.title}
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                      <p className="text-[11px] text-white font-medium line-clamp-1">
-                        {photo.caption || activeVaultFolder.title}
-                      </p>
-                    </div>
+          {/* VAULT CONTENT AREA: IN-APP PHOTOS OR GOOGLE DRIVE IFRAME */}
+          {vaultDisplayMode === 'inApp' ? (
+            <div className="space-y-4">
+              {/* In-App Photos Top Summary Banner */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-950 border border-amber-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
+                    <ImageIcon className="w-5 h-5" />
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* iPhone / Safari Cookie Notice & Instant App Shortcut */}
-          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-950 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-start gap-2.5 text-slate-300">
-              <span className="text-base shrink-0">📱</span>
-              <div>
-                <span className="font-bold text-amber-300">iPhone / Safari User?</span>
-                <p className="text-[11px] text-slate-300 mt-0.5">
-                  If Google displays <em>"Can't access your Google Account"</em> below, Apple Safari is blocking third-party iframe cookies.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
-              <a
-                href={activeVaultFolder?.driveFolderUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
-              >
-                <span>Open in Drive App</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-
-              <button
-                onClick={() => setShowIosTip(!showIosTip)}
-                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white text-xs border border-slate-700 transition-colors shrink-0"
-              >
-                {showIosTip ? 'Hide Guide' : 'How to Fix on iPhone'}
-              </button>
-            </div>
-          </div>
-
-          {/* Collapsible iOS Safari Fix Guide */}
-          {showIosTip && (
-            <div className="p-4 rounded-2xl bg-slate-950 border border-amber-500/30 text-xs text-slate-300 space-y-2.5 animate-in fade-in">
-              <div className="font-bold text-amber-300 flex items-center justify-between">
-                <span>To load Google Drive directly inside the webpage on iPhone:</span>
-                <button onClick={() => setShowIosTip(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
-              </div>
-              <ol className="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
-                <li>Open iPhone <strong>Settings</strong> app.</li>
-                <li>Scroll down and tap <strong>Safari</strong> (or <strong>Apps ➔ Safari</strong> on iOS 18).</li>
-                <li>Under <strong>Privacy & Security</strong>, turn <strong>OFF</strong> <span className="text-amber-300 font-semibold">"Prevent Cross-Site Tracking"</span>.</li>
-                <li>Return here and refresh — the entire Google Drive folder will load directly inside the frame!</li>
-              </ol>
-            </div>
-          )}
-
-          {/* Full-bleed Embedded Google Drive Iframe Grid */}
-          <div className={`rounded-3xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl relative transition-all ${
-            isVaultExpanded 
-              ? 'fixed inset-4 z-50 flex flex-col max-w-7xl mx-auto my-auto h-[92vh] border-amber-500/40 ring-1 ring-amber-500/30' 
-              : 'h-[750px] sm:h-[820px]'
-          }`}>
-            {isVaultExpanded && (
-              <div className="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-2">
-                  <Folder className="w-4 h-4 text-amber-400" />
-                  <span className="font-bold text-white text-xs">{activeVaultFolder?.title}</span>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-base font-bold text-white">
+                        {activeVaultFolder?.title}
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[11px] font-semibold text-rose-300">
+                        {currentAlbumPhotos.length} {currentAlbumPhotos.length === 1 ? 'Photo' : 'Photos'}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-[11px] font-semibold text-emerald-400">
+                        ✓ No Google sign-in required
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-1">
+                      Native In-App Gallery: Tap any photo below to open the fullscreen Lightbox with pinch-to-zoom and instant downloads.
+                    </p>
+                  </div>
                 </div>
-                <button
-                  onClick={() => setIsVaultExpanded(false)}
-                  className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 flex items-center gap-1"
-                >
-                  <Minimize2 className="w-3.5 h-3.5" />
-                  <span>Exit Fullscreen</span>
-                </button>
-              </div>
-            )}
-            <iframe
-              key={`${activeVaultFolder?.folderId}-${vaultLayout}-${vaultRefreshKey}`}
-              src={`https://drive.google.com/embeddedfolderview?id=${activeVaultFolder?.folderId}#${vaultLayout}`}
-              title={activeVaultFolder?.title || 'Google Drive Folder'}
-              className="w-full h-full border-0 flex-1"
-              allow="autoplay; encrypted-media; fullscreen"
-            />
-          </div>
 
-          <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-400">
-            <span className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>
-                <strong className="text-slate-200">100% Private & Protected:</strong> Verified natively via your active Google browser session. Only accounts permitted by host (<code className="text-amber-300">peradeniyaguys@gmail.com</code>) can view or download these photos.
-              </span>
-            </span>
-            <span className="text-slate-500 font-mono text-[11px] shrink-0">Folder ID: {activeVaultFolder?.folderId}</span>
-          </div>
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  <a
+                    href={activeVaultFolder?.driveFolderUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5"
+                    title="Open folder directly in Google Drive"
+                  >
+                    <span>Drive App</span>
+                    <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => setVaultDisplayMode('iframe')}
+                    className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-amber-300 hover:text-amber-200 text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5"
+                  >
+                    <Folder className="w-3.5 h-3.5" />
+                    <span>View Drive Iframe</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Photos Grid */}
+              {currentAlbumPhotos.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+                  {currentAlbumPhotos.map((photo, pIdx) => (
+                    <div
+                      key={photo.id || pIdx}
+                      onClick={() => onOpenLightbox(currentAlbumPhotos, pIdx, activeVaultFolder?.driveFolderUrl)}
+                      className="group relative aspect-video sm:aspect-[4/3] rounded-2xl overflow-hidden cursor-pointer border border-slate-800 hover:border-amber-400/60 bg-slate-950 transition-all hover:scale-[1.02] shadow-md hover:shadow-amber-500/10"
+                    >
+                      <img
+                        src={formatGoogleDriveImageUrl(photo.url)}
+                        alt={photo.caption || activeVaultFolder?.title}
+                        loading="lazy"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-950/80 text-amber-300 border border-amber-400/30 backdrop-blur-sm">
+                            #{pIdx + 1}
+                          </span>
+                          <span className="p-1 rounded-lg bg-slate-900/80 text-white backdrop-blur-sm">
+                            <Maximize2 className="w-3.5 h-3.5" />
+                          </span>
+                        </div>
+
+                        <div>
+                          <p className="text-xs font-semibold text-white line-clamp-1">
+                            {photo.caption || activeVaultFolder?.title}
+                          </p>
+                          <p className="text-[10px] text-slate-300 mt-0.5">
+                            Click to enlarge in Lightbox
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-3xl bg-slate-950 border border-slate-800 p-12 text-center flex flex-col items-center justify-center space-y-3">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400">
+                    <Camera className="w-7 h-7 text-amber-400" />
+                  </div>
+                  <h4 className="text-base font-bold text-white">No photos indexed in the local gallery for this album yet</h4>
+                  <p className="text-xs text-slate-400 max-w-md">
+                    This folder is live on Google Drive. You can load it directly via Drive Iframe or open the Google Drive app.
+                  </p>
+                  <div className="flex items-center gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setVaultDisplayMode('iframe')}
+                      className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-amber-300 text-xs font-semibold border border-slate-700 transition-colors"
+                    >
+                      Switch to Drive Iframe
+                    </button>
+                    <a
+                      href={activeVaultFolder?.driveFolderUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs shadow-md transition-all"
+                    >
+                      Open in Drive App ↗
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* Native In-App Vault Footer */}
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-400">
+                <span className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>
+                    <strong className="text-slate-200">100% Mobile & Safari Friendly:</strong> Photos load natively without Google cookie prompts, account switching tabs, or third-party tracking blocks.
+                  </span>
+                </span>
+                <span className="text-slate-500 font-mono text-[11px] shrink-0">Folder ID: {activeVaultFolder?.folderId}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* iPhone / Safari Cookie Notice & Instant App Shortcut */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-950 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-start gap-2.5 text-slate-300">
+                  <span className="text-base shrink-0">📱</span>
+                  <div>
+                    <span className="font-bold text-amber-300">
+                      {isIOS ? 'iPhone / Safari Notice: "Request permission" notice' : 'iPhone / Safari "Request permission" error?'}
+                    </span>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      Apple Safari blocks cookies in iframes. Switching accounts opens in a separate tab instead of inside the site. Tap <strong>In-App Photos</strong> to view immediately without permissions!
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setVaultDisplayMode('inApp')}
+                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>In-App Photos ({currentAlbumPhotos.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowIosTip(!showIosTip)}
+                    className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white text-xs border border-slate-700 transition-colors shrink-0"
+                  >
+                    {showIosTip ? 'Hide Guide' : 'How to Fix Safari'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Collapsible iOS Safari Fix Guide */}
+              {showIosTip && (
+                <div className="p-4 rounded-2xl bg-slate-950 border border-amber-500/30 text-xs text-slate-300 space-y-2.5 animate-in fade-in">
+                  <div className="font-bold text-amber-300 flex items-center justify-between">
+                    <span>To load Google Drive directly inside the webpage on iPhone:</span>
+                    <button onClick={() => setShowIosTip(false)} className="text-slate-400 hover:text-white text-xs">✕</button>
+                  </div>
+                  <ol className="list-decimal list-inside space-y-1.5 text-slate-300 text-[11px] leading-relaxed">
+                    <li>Open iPhone <strong>Settings</strong> app.</li>
+                    <li>Scroll down and tap <strong>Safari</strong> (or <strong>Apps ➔ Safari</strong> on iOS 18).</li>
+                    <li>Under <strong>Privacy & Security</strong>, turn <strong>OFF</strong> <span className="text-amber-300 font-semibold">"Prevent Cross-Site Tracking"</span>.</li>
+                    <li>Return here and refresh — the entire Google Drive folder will load directly inside the frame!</li>
+                  </ol>
+                </div>
+              )}
+
+              {/* Full-bleed Embedded Google Drive Iframe Grid */}
+              <div className={`rounded-3xl bg-slate-950 border border-slate-800 overflow-hidden shadow-2xl relative transition-all ${
+                isVaultExpanded 
+                  ? 'fixed inset-4 z-50 flex flex-col max-w-7xl mx-auto my-auto h-[92vh] border-amber-500/40 ring-1 ring-amber-500/30' 
+                  : 'h-[750px] sm:h-[820px]'
+              }`}>
+                {isVaultExpanded && (
+                  <div className="p-3 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Folder className="w-4 h-4 text-amber-400" />
+                      <span className="font-bold text-white text-xs">{activeVaultFolder?.title}</span>
+                    </div>
+                    <button
+                      onClick={() => setIsVaultExpanded(false)}
+                      className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-750 text-xs font-semibold text-slate-300 flex items-center gap-1"
+                    >
+                      <Minimize2 className="w-3.5 h-3.5" />
+                      <span>Exit Fullscreen</span>
+                    </button>
+                  </div>
+                )}
+                <iframe
+                  key={`${activeVaultFolder?.folderId}-${vaultLayout}-${vaultRefreshKey}`}
+                  src={`https://drive.google.com/embeddedfolderview?id=${activeVaultFolder?.folderId}#${vaultLayout}`}
+                  title={activeVaultFolder?.title || 'Google Drive Folder'}
+                  className="w-full h-full border-0 flex-1"
+                  allow="autoplay; encrypted-media; fullscreen"
+                />
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-slate-400">
+                <span className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <span>
+                    <strong className="text-slate-200">100% Private & Protected:</strong> Verified natively via your active Google browser session. Only accounts permitted by host (<code className="text-amber-300">peradeniyaguys@gmail.com</code>) can view or download these photos.
+                  </span>
+                </span>
+                <span className="text-slate-500 font-mono text-[11px] shrink-0">Folder ID: {activeVaultFolder?.folderId}</span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1000,6 +1168,8 @@ export default function PhotoGallery({
           isOpen={!!selectedDriveFolder}
           album={selectedDriveFolder}
           onClose={() => setSelectedDriveFolder(null)}
+          onOpenLightbox={onOpenLightbox}
+          allPhotos={allPhotos}
         />
       )}
 
