@@ -126,26 +126,87 @@ export function readAsDataURL(file) {
  */
 export function formatGoogleDriveImageUrl(url) {
   if (!url || typeof url !== 'string') return url;
+  const trimmed = url.trim();
 
   // Pattern 1: drive.google.com/file/d/FILE_ID/...
-  const fileDMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  const fileDMatch = trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
   if (fileDMatch && fileDMatch[1]) {
     return `https://drive.google.com/thumbnail?id=${fileDMatch[1]}&sz=w1600`;
   }
 
   // Pattern 2: id=FILE_ID
-  const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (idMatch && idMatch[1] && url.includes('drive.google.com')) {
+  const idMatch = trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (idMatch && idMatch[1] && (trimmed.includes('drive.google.com') || trimmed.includes('docs.google.com'))) {
     return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w1600`;
   }
 
-  // Pattern 3: lh3.googleusercontent.com/d/FILE_ID
-  const lh3Match = url.match(/googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
-  if (lh3Match && lh3Match[1]) {
+  // Pattern 3: lh3.googleusercontent.com/d/FILE_ID or /u/0/d/FILE_ID
+  const lh3Match = trimmed.match(/googleusercontent\.com\/(?:d\/|u\/\d+\/d\/)?([a-zA-Z0-9_-]+)/);
+  if (lh3Match && lh3Match[1] && lh3Match[1].length > 10) {
     return `https://drive.google.com/thumbnail?id=${lh3Match[1]}&sz=w1600`;
   }
 
-  return url;
+  return trimmed;
+}
+
+/**
+ * Loads any image (Google Drive thumbnail, external URL, or data URL)
+ * into a CORS-safe local Blob Object URL so that HTML5 Canvas operations
+ * (framing, zooming, cropping, toDataURL) will never be blocked by CORS or canvas taint.
+ */
+export async function loadSafeImageBlob(src) {
+  if (!src || typeof src !== 'string') {
+    throw new Error('Invalid image source');
+  }
+
+  const trimmed = src.trim();
+
+  // If already a local data URL or blob URL, it is 100% same-origin!
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return { url: trimmed, isBlobUrl: false };
+  }
+
+  const cleanUrl = formatGoogleDriveImageUrl(trimmed);
+
+  // Attempt 1: Direct fetch with CORS mode
+  try {
+    const directRes = await fetch(cleanUrl, { mode: 'cors' });
+    if (directRes.ok) {
+      const blob = await directRes.blob();
+      if (blob && blob.size > 0 && (blob.type.startsWith('image/') || blob.type === 'application/octet-stream')) {
+        return { url: URL.createObjectURL(blob), isBlobUrl: true };
+      }
+    }
+  } catch {
+    // Direct CORS fetch failed (typical for Google Drive), fallback to proxy
+  }
+
+  // Attempt 2: High-speed global CORS image proxies (wsrv.nl / weserv.nl)
+  const proxyEndpoints = [
+    `https://wsrv.nl/?url=${encodeURIComponent(cleanUrl)}&output=jpg&q=92`,
+    `https://images.weserv.nl/?url=${encodeURIComponent(cleanUrl)}&output=jpg&q=92`
+  ];
+
+  for (const proxyUrl of proxyEndpoints) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8500);
+      const res = await fetch(proxyUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const blob = await res.blob();
+        if (blob && blob.size > 0) {
+          return { url: URL.createObjectURL(blob), isBlobUrl: true };
+        }
+      }
+    } catch {
+      // Continue to next proxy candidate
+    }
+  }
+
+  // Fallback: return formatted clean URL
+  return { url: cleanUrl, isBlobUrl: false };
 }
 
 /**

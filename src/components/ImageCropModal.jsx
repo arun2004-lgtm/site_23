@@ -3,6 +3,7 @@ import {
   X, Check, ZoomIn, ZoomOut, RotateCw, RotateCcw, 
   Move, Circle, Square, Loader2 
 } from 'lucide-react';
+import { loadSafeImageBlob } from '../utils/imageUtils';
 
 const FRAME_SIZE = 280; // Standard 280px viewport fits all phones without horizontal overflow
 
@@ -14,7 +15,8 @@ export default function ImageCropModal({
   title = "Frame & Position Photo",
   initialShape = 'circle'
 }) {
-  const [loadedImageSrc, setLoadedImageSrc] = useState(null);
+  const [displaySrc, setDisplaySrc] = useState(null);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
@@ -23,9 +25,10 @@ export default function ImageCropModal({
   const [shape, setShape] = useState(initialShape); // 'circle' | 'square'
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const imageLoaded = Boolean(loadedImageSrc && loadedImageSrc === imageSrc && !loadError);
+  const imageLoaded = Boolean(displaySrc && !isLoadingImage && !loadError && naturalSize.width > 0);
 
   const imgRef = useRef(null);
+  const activeBlobUrlRef = useRef(null);
   const frameContainerRef = useRef(null);
   const mouseDragRef = useRef({ isDragging: false, startX: 0, startY: 0, startPan: { x: 0, y: 0 } });
   const touchStateRef = useRef({
@@ -36,31 +39,101 @@ export default function ImageCropModal({
     startTouch1: { x: 0, y: 0 }
   });
 
-  // Load image dimensions asynchronously
+  // Load image dimensions asynchronously with CORS-safe fallback pipeline
   useEffect(() => {
-    if (!isOpen || !imageSrc) return;
+    if (!isOpen || !imageSrc) {
+      if (activeBlobUrlRef.current) {
+        URL.revokeObjectURL(activeBlobUrlRef.current);
+        activeBlobUrlRef.current = null;
+      }
+      return;
+    }
 
     let active = true;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      if (!active) return;
-      imgRef.current = img;
-      setNaturalSize({ width: img.naturalWidth || img.width, height: img.naturalHeight || img.height });
-      setLoadedImageSrc(imageSrc);
+
+    (async () => {
+      setIsLoadingImage(true);
       setLoadError(false);
-      setZoom(1);
-      setRotation(0);
-      setPan({ x: 0, y: 0 });
-    };
-    img.onerror = () => {
-      if (!active) return;
-      setLoadError(true);
-    };
-    img.src = imageSrc;
+      setDisplaySrc(null);
+
+      let resolvedUrl = imageSrc;
+      let isBlob = false;
+
+      try {
+        const safeResult = await loadSafeImageBlob(imageSrc);
+        if (!active) {
+          if (safeResult.isBlobUrl) URL.revokeObjectURL(safeResult.url);
+          return;
+        }
+        resolvedUrl = safeResult.url;
+        isBlob = safeResult.isBlobUrl;
+        if (isBlob) {
+          if (activeBlobUrlRef.current) {
+            URL.revokeObjectURL(activeBlobUrlRef.current);
+          }
+          activeBlobUrlRef.current = resolvedUrl;
+        }
+      } catch (prepErr) {
+        console.warn('Image preparation warning:', prepErr);
+      }
+
+      const img = new Image();
+      // Only set crossOrigin if not a local blob/data URL
+      if (!isBlob && !resolvedUrl.startsWith('data:') && !resolvedUrl.startsWith('blob:')) {
+        img.crossOrigin = 'anonymous';
+      }
+
+      const onImageSuccess = () => {
+        if (!active) return;
+        imgRef.current = img;
+        setNaturalSize({ width: img.naturalWidth || img.width, height: img.naturalHeight || img.height });
+        setDisplaySrc(resolvedUrl);
+        setLoadError(false);
+        setIsLoadingImage(false);
+        setZoom(1);
+        setRotation(0);
+        setPan({ x: 0, y: 0 });
+      };
+
+      img.onload = onImageSuccess;
+
+      img.onerror = () => {
+        if (!active) return;
+        // If image failed with crossOrigin, retry once without crossOrigin as visual fallback
+        if (img.crossOrigin) {
+          const fallbackImg = new Image();
+          fallbackImg.onload = () => {
+            if (!active) return;
+            imgRef.current = fallbackImg;
+            setNaturalSize({ width: fallbackImg.naturalWidth || fallbackImg.width, height: fallbackImg.naturalHeight || fallbackImg.height });
+            setDisplaySrc(resolvedUrl);
+            setLoadError(false);
+            setIsLoadingImage(false);
+            setZoom(1);
+            setRotation(0);
+            setPan({ x: 0, y: 0 });
+          };
+          fallbackImg.onerror = () => {
+            if (!active) return;
+            setLoadError(true);
+            setIsLoadingImage(false);
+          };
+          fallbackImg.src = resolvedUrl;
+        } else {
+          setLoadError(true);
+          setIsLoadingImage(false);
+        }
+      };
+
+      img.src = resolvedUrl;
+    })();
 
     return () => {
       active = false;
+      if (activeBlobUrlRef.current) {
+        URL.revokeObjectURL(activeBlobUrlRef.current);
+        activeBlobUrlRef.current = null;
+      }
     };
   }, [isOpen, imageSrc]);
 
@@ -279,7 +352,13 @@ export default function ImageCropModal({
       ctx.restore();
 
       // Export as high quality compressed JPEG (~35-45KB)
-      const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      let croppedDataUrl;
+      try {
+        croppedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      } catch (canvasErr) {
+        console.warn('Canvas export tainted, falling back to clean source:', canvasErr);
+        croppedDataUrl = displaySrc || imageSrc;
+      }
       onCropComplete(croppedDataUrl);
     } catch (err) {
       console.error('Error applying crop:', err);
@@ -328,20 +407,23 @@ export default function ImageCropModal({
 
         {/* Viewport Card */}
         <div className="relative mx-auto bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 shadow-inner flex items-center justify-center select-none">
-          {!imageLoaded && !loadError && (
+          {isLoadingImage && (
             <div className="w-[280px] h-[280px] flex flex-col items-center justify-center gap-2 text-slate-400">
               <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
-              <span className="text-xs">Loading picture...</span>
+              <span className="text-xs">Preparing picture for framing...</span>
             </div>
           )}
 
-          {loadError && (
+          {loadError && !isLoadingImage && (
             <div className="w-[280px] h-[280px] flex flex-col items-center justify-center gap-2 text-rose-400 p-4 text-center">
               <span className="text-xs font-semibold">Failed to load picture for framing.</span>
+              <p className="text-[11px] text-slate-500 max-w-[220px]">
+                The picture link could not be loaded or accessed.
+              </p>
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-2 px-3 py-1 bg-slate-800 rounded-lg text-xs text-white"
+                className="mt-2 px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs text-white"
               >
                 Close
               </button>
@@ -361,7 +443,7 @@ export default function ImageCropModal({
             >
               {/* Image Layer */}
               <img
-                src={imageSrc}
+                src={displaySrc || imageSrc}
                 alt="Framing preview"
                 draggable={false}
                 className="absolute pointer-events-none select-none max-w-none will-change-transform"

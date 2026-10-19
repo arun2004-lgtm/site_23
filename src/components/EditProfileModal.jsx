@@ -519,11 +519,14 @@ export default function EditProfileModal({ isOpen, onClose }) {
                     </label>
 
                     {/* Frame & Zoom Button for custom photo */}
-                    {formData.photo && !formData.photo.includes('api.dicebear.com') && (
+                    {Boolean(
+                      (formData.photo || currentUser?.photo) && 
+                      !(formData.photo || currentUser?.photo || '').includes('api.dicebear.com')
+                    ) && (
                       <button
                         type="button"
                         onClick={() => {
-                          setRawImageForCrop(formData.photo);
+                          setRawImageForCrop(formData.photo || currentUser?.photo || '');
                           setIsCropModalOpen(true);
                         }}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 hover:text-amber-200 text-xs font-semibold border border-amber-500/40 transition-colors shadow-sm"
